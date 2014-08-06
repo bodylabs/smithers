@@ -105,15 +105,8 @@ namespace Smithers.Visualization
         /// <param name="withLock"></param>
         public static void CopyToDisplay(WriteableBitmap displayBitmap, byte[] outputBuffer, bool withLock)
         {
-            if (withLock) displayBitmap.Lock();
-
-            Marshal.Copy(outputBuffer, 0, displayBitmap.BackBuffer, outputBuffer.Length);
-
-            if (withLock)
-            {
-                displayBitmap.AddDirtyRect(new Int32Rect(0, 0, displayBitmap.PixelWidth, displayBitmap.PixelHeight));
-                displayBitmap.Unlock();
-            }
+            displayBitmap.WritePixels(new Int32Rect(0, 0, displayBitmap.PixelWidth, displayBitmap.PixelHeight), outputBuffer,
+                                      displayBitmap.PixelWidth * FrameBitmap.BYTES_PER_PIXEL, 0);
         }
     }
 }
