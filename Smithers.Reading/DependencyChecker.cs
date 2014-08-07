@@ -86,7 +86,8 @@ namespace Smithers.Reading
 
             string sourcePath = "";
 
-            if (!File.Exists(targetPath))
+
+            if (!File.Exists(targetPath) || FaceAssemblyVersionMisMatch(targetPath))
             {
                 if (File.Exists(KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_PATH))
                 {
@@ -128,14 +129,36 @@ namespace Smithers.Reading
             }
         }
 
+        /// <summary>
+        /// When user update the App first and switch to a weekly build dev SDK,
+        /// We should copy and overwrite the assembly 
+        /// </summary>
+        /// <param name="appLocalFaceAssembly"></param>
+        /// <returns></returns>
+        public static bool FaceAssemblyVersionMisMatch(string appLocalFaceAssembly)
+        {
+            string SDKVersion = GetSDKVersion().FileVersion;
+
+            FileVersionInfo info = FileVersionInfo.GetVersionInfo(appLocalFaceAssembly);
+
+            return SDKVersion != info.FileVersion;
+
+        }
+
+
+        public static FileVersionInfo GetSDKVersion()
+        {
+            Assembly assembly = Assembly.GetAssembly(typeof(Microsoft.Kinect.KinectSensor));
+            return FileVersionInfo.GetVersionInfo(assembly.Location);
+        }
+
         public static void CheckKinectSDK()
         {
             try
             {
                 // If the SDK is removed but the app somehow is started anyway,
                 // this line will raise a FileNotFoundException.
-                Assembly assembly = Assembly.GetAssembly(typeof(Microsoft.Kinect.KinectSensor));
-                FileVersionInfo info = FileVersionInfo.GetVersionInfo(assembly.Location);
+                FileVersionInfo info = GetSDKVersion();
 
                 if (!info.FileVersion.StartsWith(PUBLIC_PREVIEW_VERSION_PREFIX))
                 {
