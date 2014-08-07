@@ -34,6 +34,10 @@ using System.Threading.Tasks;
 
 namespace Smithers.Reading.Calibration
 {
+    /// <summary>
+    /// This is for writing a file that can be used to extract the camera
+    /// calibration using standard tools like OpenCV.
+    /// </summary>
     public class Calibrator
     {
         private static CalibrationRecord Calibrate(KinectSensor sensor)
