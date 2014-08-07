@@ -28,10 +28,10 @@ Installation
 
 4. Create a new solution and add the four projects:
 
-        - Smithers.Reading
-        - Smithers.Visualization
-        - Smithers.Serialization
-        - Smithers.Sessions
+    - Smithers.Reading
+    - Smithers.Visualization
+    - Smithers.Serialization
+    - Smithers.Sessions
 
 5. Build the solution. The app will automatically install most of the
    remaining dependencies.
