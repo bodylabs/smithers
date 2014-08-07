@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("Smithers.Visualization")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Hewlett-Packard Company")]
+[assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("Smithers.Visualization")]
-[assembly: AssemblyCopyright("Copyright © Hewlett-Packard Company 2014")]
+[assembly: AssemblyCopyright("Smithers is licensed under the two-clause BSD license")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("Smithers.Reading")]
-[assembly: AssemblyCopyright("Copyright ©  2014")]
+[assembly: AssemblyCopyright("Smithers is licensed under the two-clause BSD license")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
