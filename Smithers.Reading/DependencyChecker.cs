@@ -53,10 +53,13 @@ namespace Smithers.Reading
     {
         const string PUBLIC_PREVIEW_VERSION_PREFIX = "2.0.1407";
         const string NUIDB_SOURCE_FOLDER = @"C:\Program Files (x86)\Microsoft SDKs\Windows\v8.0\ExtensionSDKs\Microsoft.Kinect.Face\2.0\Redist\CommonConfiguration\x64\NuiDatabase";
-        
+        const string KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_PATH = @"C:\Program Files\Microsoft SDKs\Kinect\v2.0-PublicPreview1407\Assemblies\Microsoft.Kinect.Face.dll";
+        const string KINECT_FACE_ASSEMBLY_07_30_PATH = @"C:\Program Files\Microsoft SDKs\Kinect\MainV2\Assemblies\Microsoft.Kinect.Face.dll";
+
         public static void CheckDependencies()
         {
             CheckKinectSDK();
+            LoadKinectFaceAssembly();
         }
 
         private static void CopyAll(string SourcePath, string DestinationPath)
@@ -74,6 +77,35 @@ namespace Smithers.Reading
             {
                 File.Copy(newPath, newPath.Replace(SourcePath, DestinationPath));
             });
+        }
+
+        public static void LoadKinectFaceAssembly()
+        {
+            string exeFolder = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string targetPath = Path.Combine(exeFolder, "Microsoft.Kinect.Face.dll");
+
+            string sourcePath = "";
+
+            if (!File.Exists(targetPath))
+            {
+                if (File.Exists(KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_PATH))
+                {
+                    sourcePath = KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_PATH;
+
+                }
+                else if(File.Exists(KINECT_FACE_ASSEMBLY_07_30_PATH))
+                {
+                    sourcePath = KINECT_FACE_ASSEMBLY_07_30_PATH;
+
+                }
+                else
+                {
+                    throw new DependencyException("Kinect Face Assembly Not Found. Please Install the Latest SDK");
+                }
+
+                File.Copy(sourcePath, targetPath);
+            }
+
         }
 
         /// <summary>
