@@ -53,7 +53,8 @@ namespace Smithers.Reading
     {
         const string PUBLIC_PREVIEW_MIN_VERSION_PREFIX = "2.0.1407";
         const string NUIDB_SOURCE_FOLDER = @"C:\Program Files (x86)\Microsoft SDKs\Windows\v8.0\ExtensionSDKs\Microsoft.Kinect.Face\2.0\Redist\CommonConfiguration\x64\NuiDatabase";
-        const string KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_PATH = @"C:\Program Files\Microsoft SDKs\Kinect\v2.0-PublicPreview1407\Assemblies\Microsoft.Kinect.Face.dll";
+        const string KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_1407_PATH = @"C:\Program Files\Microsoft SDKs\Kinect\v2.0-PublicPreview1407\Assemblies\Microsoft.Kinect.Face.dll";
+        const string KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_1408_PATH = @"C:\Program Files\Microsoft SDKs\Kinect\v2.0-PublicPreview1408\Redist\Face\x64\Microsoft.Kinect.Face.dll";
         const string KINECT_FACE_ASSEMBLY_07_30_PATH = @"C:\Program Files\Microsoft SDKs\Kinect\MainV2\Assemblies\Microsoft.Kinect.Face.dll";
 
         public static void CheckDependencies()
@@ -89,9 +90,13 @@ namespace Smithers.Reading
 
             if (!File.Exists(targetPath) || FaceAssemblyVersionMisMatch(targetPath))
             {
-                if (File.Exists(KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_PATH))
+                if (File.Exists(KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_1407_PATH))
                 {
-                    sourcePath = KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_PATH;
+                    sourcePath = KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_1407_PATH;
+                }
+                else if(File.Exists(KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_1408_PATH))
+                {
+                    sourcePath = KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_1408_PATH;
                 }
                 else if (File.Exists(KINECT_FACE_ASSEMBLY_07_30_PATH))
                 {
@@ -103,7 +108,7 @@ namespace Smithers.Reading
                     throw new DependencyException("Kinect Face Assembly Not Found. Please Install the Latest SDK");
                 }
 
-                File.Copy(sourcePath, targetPath);
+                File.Copy(sourcePath, targetPath, true);
             }
 
         }
