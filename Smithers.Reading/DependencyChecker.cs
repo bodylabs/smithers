@@ -51,7 +51,7 @@ namespace Smithers.Reading
 
     public static class DependencyChecker
     {
-        const string PUBLIC_PREVIEW_VERSION_PREFIX = "2.0.1407";
+        const string PUBLIC_PREVIEW_MIN_VERSION_PREFIX = "2.0.1407";
         const string NUIDB_SOURCE_FOLDER = @"C:\Program Files (x86)\Microsoft SDKs\Windows\v8.0\ExtensionSDKs\Microsoft.Kinect.Face\2.0\Redist\CommonConfiguration\x64\NuiDatabase";
         const string KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_PATH = @"C:\Program Files\Microsoft SDKs\Kinect\v2.0-PublicPreview1407\Assemblies\Microsoft.Kinect.Face.dll";
         const string KINECT_FACE_ASSEMBLY_07_30_PATH = @"C:\Program Files\Microsoft SDKs\Kinect\MainV2\Assemblies\Microsoft.Kinect.Face.dll";
@@ -92,9 +92,8 @@ namespace Smithers.Reading
                 if (File.Exists(KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_PATH))
                 {
                     sourcePath = KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_PATH;
-
                 }
-                else if(File.Exists(KINECT_FACE_ASSEMBLY_07_30_PATH))
+                else if (File.Exists(KINECT_FACE_ASSEMBLY_07_30_PATH))
                 {
                     sourcePath = KINECT_FACE_ASSEMBLY_07_30_PATH;
 
@@ -160,7 +159,7 @@ namespace Smithers.Reading
                 // this line will raise a FileNotFoundException.
                 FileVersionInfo info = GetSDKVersion();
 
-                if (!info.FileVersion.StartsWith(PUBLIC_PREVIEW_VERSION_PREFIX))
+                if (info.FileVersion.CompareTo(PUBLIC_PREVIEW_MIN_VERSION_PREFIX) < 0)
                 {
                     throw new DependencyException("Incompatible Kinect v2 SDK detected. Please make sure you are using the latest SDK");
                 }
