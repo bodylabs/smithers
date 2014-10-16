@@ -68,6 +68,10 @@
     <Compile Include="FrameData\Skeleton.cs" />
     <Compile Include="FrameData\FrameReader.cs" />
     <Compile Include="FrameData\LiveFrame.cs" />
+    <Compile Include="FrameRateReporter.cs" />
+    <Compile Include="SimpleProfiler.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
