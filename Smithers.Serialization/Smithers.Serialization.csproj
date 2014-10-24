@@ -53,16 +53,19 @@
     <When Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">
       <PropertyGroup>
         <NuGetRepositoryPath>..\</NuGetRepositoryPath>
-      </PropertyGroup> 
+      </PropertyGroup>
     </When>
     <When Condition="$(SolutionDir) != '' And $(SolutionDir) != '*Undefined*'">
       <PropertyGroup>
         <NuGetRepositoryPath>$(SolutionDir)</NuGetRepositoryPath>
-      </PropertyGroup> 
+      </PropertyGroup>
     </When>
   </Choose>
   <ItemGroup>
-    <Reference Include="Microsoft.Kinect, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL" />
+    <Reference Include="Microsoft.Kinect, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <Private>True</Private>
+      <HintPath>..\..\..\packages\Microsoft.Kinect.2.0.1410.19000\lib\net45\Microsoft.Kinect.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json">
       <HintPath>$(NuGetRepositoryPath)packages\Newtonsoft.Json.6.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>

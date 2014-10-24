@@ -51,8 +51,8 @@ namespace Smithers.Reading
 
     public static class DependencyChecker
     {
-        const string PUBLIC_PREVIEW_MIN_VERSION_PREFIX = "2.0.1407";
-        const string PUBLIC_PREVIEW_LATEST_VERSION = "2.0.1409";
+        const string PUBLIC_PREVIEW_MIN_VERSION_PREFIX = "2.0.1409";
+        const string PUBLIC_PREVIEW_LATEST_VERSION = "2.0.1410";
         const string NUIDB_SOURCE_FOLDER = @"C:\Program Files (x86)\Microsoft SDKs\Windows\v8.0\ExtensionSDKs\Microsoft.Kinect.Face\2.0\Redist\CommonConfiguration\x64\NuiDatabase";
         const string KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_1407_PATH = @"C:\Program Files\Microsoft SDKs\Kinect\v2.0-PublicPreview1407\Assemblies\Microsoft.Kinect.Face.dll";
         const string KINECT_FACE_ASSEMBLY_PUBLIC_PREVIEW_1408_PATH = @"C:\Program Files\Microsoft SDKs\Kinect\v2.0-PublicPreview1408\Redist\Face\x64\Microsoft.Kinect.Face.dll";
@@ -62,7 +62,10 @@ namespace Smithers.Reading
         public static void CheckDependencies()
         {
             CheckKinectSDK();
-            LoadKinectFaceAssembly();
+            if (!IsUsingLatestSDK())
+            {
+                LoadKinectFaceAssembly();
+            }
         }
 
         private static void CopyAll(string SourcePath, string DestinationPath)
@@ -183,7 +186,7 @@ namespace Smithers.Reading
             }
             catch (System.IO.FileNotFoundException)
             {
-                throw new DependencyException("Kinect 2 SDK is not installed.");
+                throw new DependencyException("Kinect 2 Driver is not installed. Please Update Your Device Driver");
             }
         }
     }
