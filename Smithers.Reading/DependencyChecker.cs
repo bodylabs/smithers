@@ -128,7 +128,7 @@ namespace Smithers.Reading
         {
             if (!Directory.Exists(NUIDB_SOURCE_FOLDER))
             {
-                throw new DependencyException("Could not locate Microsoft NUI database. Please make sure the Kinect SDK is installed correctly.");
+                throw new DependencyException("Could not locate Microsoft NUI database. Please make sure the Kinect SDK is installed correctly or Turn off using HD Face in Settings.");
             }
 
             string exeFolder = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
