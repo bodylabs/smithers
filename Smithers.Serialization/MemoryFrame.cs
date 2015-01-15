@@ -40,13 +40,20 @@ namespace Smithers.Serialization
     public class MemoryFrame
     {
         // Buffer storage
+
+
+        // TODO: Think about removing this buffer, since we don´t need the DepthMapping information saved.
+        //       Check if any information in this buffer is used elsewhere to compute other stuff
         byte[] _bufferDepthMapping = new byte[Frame.DEPTH_INFRARED_PIXELS * FrameSerializer.DEPTH_MAPPING_BYTES_PER_PIXEL];
+
         byte[] _bufferDepth = new byte[Frame.DEPTH_INFRARED_PIXELS * FrameSerializer.DEPTH_INFRARED_BYTES_PER_PIXEL];
         byte[] _bufferInfrared = new byte[Frame.DEPTH_INFRARED_PIXELS * FrameSerializer.DEPTH_INFRARED_BYTES_PER_PIXEL];
         byte[] _bufferColor = new byte[Frame.COLOR_PIXELS * FrameSerializer.COLOR_BYTES_PER_PIXEL];
         byte[] _bufferBodyIndex = new byte[Frame.DEPTH_INFRARED_PIXELS * FrameSerializer.BODY_INDEX_BYTES_PER_PIXEL];
 
         // BLKD handle (underlying storage uses corresponding buffer above)
+        
+        // TODO: Do we need this?
         Tuple<Blkd, TimeSpan> _depthMapping;
 
         // Bitmap handles (underlying storage uses corresponding buffers above)
@@ -66,7 +73,9 @@ namespace Smithers.Serialization
         public void Update(LiveFrame frame, FrameSerializer serializer)
         {
             // (1) Depth mapping
-            _depthMapping = serializer.CaptureMappedFrame(frame, _bufferDepthMapping);
+
+            // TODO: Dont serialize this
+            // _depthMapping = serializer.CaptureMappedFrame(frame, _bufferDepthMapping);
 
             // (2) Depth
             _depth = serializer.CaptureDepthFrameBitmap(frame, _bufferDepth);

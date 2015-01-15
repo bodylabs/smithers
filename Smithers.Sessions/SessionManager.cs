@@ -177,7 +177,9 @@ namespace Smithers.Sessions
             else if (_writingShot != null)
                 throw new InvalidOperationException("We're in the middle of writing a shot!");
             else if (_nextShot == null)
+            {
                 throw new InvalidOperationException("Capture is already finished");
+            }
 
             _capturingShot = _nextShot;
 
@@ -200,7 +202,11 @@ namespace Smithers.Sessions
                 _calibration = Calibrator.CalibrateAsync(_reader.Sensor);
             }
 
-            if (_capturingShot == null) return;
+            if (_capturingShot == null)
+            {
+                Console.WriteLine("_capturingShot == null");
+                return;
+            }
 
             // (1) Serialize frame data
 
@@ -210,6 +216,10 @@ namespace Smithers.Sessions
             }
             else
             {
+                /*
+                 * Pick a proper frame to write to.
+                 */
+                Console.WriteLine("Updating frame");
                 _frames[_frameCount].Update(frame, _serializer);
             }
 
@@ -217,6 +227,8 @@ namespace Smithers.Sessions
             _frameCount += 1;
 
             if (_frameCount < _capturingShot.ShotDefinition.MaximumFrameCount) return;
+
+            Console.WriteLine("Enough frames came in");
 
             // (2) Move to the next shot
             string message;
@@ -301,7 +313,9 @@ namespace Smithers.Sessions
             {
                 // For each pose, only save the first color and depth mapping frames
                 writers.Add(new ColorFrameWriter(frame, _serializer));
-                writers.Add(new DepthMappingWriter(frame, _serializer));
+                
+                // TODO: Reenable DepthMapping?
+                // writers.Add(new DepthMappingWriter(frame, _serializer));
             }
 
             writers.Add(new DepthFrameWriter(frame, _serializer));

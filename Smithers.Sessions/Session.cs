@@ -92,7 +92,7 @@ namespace Smithers.Sessions
         /// Maximum frames which will be recorded. If more frames arrive during
         /// ShotDuration, subsequent frames will be discarded.
         /// </summary>
-        public int MaximumFrameCount { get { return 10; } }
+        public int MaximumFrameCount { get { return 50; } }
     }
 
     public class Shot<TShotDefinition, TSavedItem>

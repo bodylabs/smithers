@@ -374,6 +374,7 @@ namespace Smithers.Visualization
                 this.Canvas.Children.Remove(item);
         }
 
+
         public void FrameArrived(LiveFrame frame)
         {
             Body body = frame.FirstBody;

@@ -36,6 +36,8 @@ using System.Linq;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
+using Smithers.Reading.FrameData.Mock;
+
 namespace Smithers.Serialization
 {
     public class FrameSerializer
@@ -64,7 +66,8 @@ namespace Smithers.Serialization
         /// <returns></returns>
         public Tuple<Blkd, TimeSpan> CaptureMappedFrame(LiveFrame frame, byte[] buffer)
         {
-            DepthFrame depthFrame = frame.NativeDepthFrame;
+            // TODO: Maybe this function will never be called for our purposes.
+            var depthFrame = frame.NativeDepthFrame;
             CoordinateMapper mapper = frame.NativeCoordinateMapper;
 
             if (buffer.Length != Frame.DEPTH_INFRARED_PIXELS * DEPTH_MAPPING_BYTES_PER_PIXEL)
@@ -159,7 +162,9 @@ namespace Smithers.Serialization
 
         public Tuple<BitmapSource, TimeSpan> CaptureInfraredFrameBitmap(LiveFrame frame, byte[] buffer)
         {
-            InfraredFrame infraredFrame = frame.NativeInfraredFrame;
+            MockLiveFrame mockFrame = (MockLiveFrame)frame;
+            
+            var infraredFrame = mockFrame.NativeInfraredFrame;
 
             int width = infraredFrame.FrameDescription.Width;
             int height = infraredFrame.FrameDescription.Height;
@@ -172,7 +177,8 @@ namespace Smithers.Serialization
 
         public Tuple<BitmapSource, TimeSpan> CaptureDepthFrameBitmap(LiveFrame frame, byte[] buffer)
         {
-            DepthFrame depthFrame = frame.NativeDepthFrame;
+            MockLiveFrame mockFrame = (MockLiveFrame)frame;
+            var depthFrame = mockFrame.NativeDepthFrame;
 
             int width = depthFrame.FrameDescription.Width;
             int height = depthFrame.FrameDescription.Height;
@@ -189,7 +195,8 @@ namespace Smithers.Serialization
 
         public Tuple<BitmapSource, TimeSpan> CaptureBodyIndexFrameBitmap(LiveFrame frame, byte[] buffer)
         {
-            BodyIndexFrame bodyIndexFrame = frame.NativeBodyIndexFrame;
+            MockLiveFrame mockFrame = (MockLiveFrame)frame;
+            var bodyIndexFrame = mockFrame.NativeBodyIndexFrame;
 
             int width = bodyIndexFrame.FrameDescription.Width;
             int height = bodyIndexFrame.FrameDescription.Height;
@@ -225,7 +232,8 @@ namespace Smithers.Serialization
         {
             ValidateBuffer(buffer, Frame.COLOR_WIDTH, Frame.COLOR_HEIGHT, COLOR_BYTES_PER_PIXEL);
 
-            ColorFrame colorFrame = frame.NativeColorFrame;
+            MockLiveFrame mockFrame = (MockLiveFrame)frame;
+            var colorFrame = mockFrame.NativeColorFrame;
 
             colorFrame.CopyConvertedFrameDataToArray(buffer, ColorImageFormat.Bgra);
 
@@ -283,12 +291,13 @@ namespace Smithers.Serialization
                 serializedBodies.Add(SerializeBody(body));
             }
 
+            MockLiveFrame mockFrame = (MockLiveFrame)frame;
             object result = new
             {
-                FloorClipPlane = frame.NativeBodyFrame.FloorClipPlane.ToArray(),
+                FloorClipPlane = mockFrame.NativeBodyFrame.FloorClipPlane.ToArray(),
                 Bodies = serializedBodies
             };
-            return new Tuple<object, TimeSpan>(result, frame.NativeBodyFrame.RelativeTime);
+            return new Tuple<object, TimeSpan>(result, mockFrame.NativeBodyFrame.RelativeTime);
         }
     }
 }
