@@ -18,7 +18,7 @@ namespace Smithers.Reading.FrameData.Mock
         {
             for (int i = 0; i < buffer.Length; ++i)
             {
-                buffer[i] = 128;
+                buffer[i] = (byte) ((i % 200 < 100) ? 200 : 100);
             }
         }
     }
@@ -32,7 +32,7 @@ namespace Smithers.Reading.FrameData.Mock
         {
             for (int i = 0; i < array.Length; ++i)
             {
-                array[i] = 0x88;                
+                array[i] = (ushort) ((i % 200 < 100) ? 0x6 : 0xB);                
             }
         }
     }
@@ -46,7 +46,7 @@ namespace Smithers.Reading.FrameData.Mock
         {
             for (int i = 0; i < array.Length; ++i)
             {
-                array[i] = 0x33;
+                array[i] = (ushort) ((i % 200 < 100) ? 0x6 : 0xB);
             }
         }
     }
