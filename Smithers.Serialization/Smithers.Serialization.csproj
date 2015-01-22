@@ -79,7 +79,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MemoryPoolManager.cs" />
+    <Compile Include="MemoryManager.cs" />
     <Compile Include="Writers\BitmapWriter.cs" />
     <Compile Include="Writers\BlkdWriter.cs" />
     <Compile Include="Writers\CalibrationWriter.cs" />

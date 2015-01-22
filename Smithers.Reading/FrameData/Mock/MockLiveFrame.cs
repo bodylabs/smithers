@@ -21,5 +21,16 @@ namespace Smithers.Reading.FrameData.Mock
         public MockBodyIndexFrame NativeBodyIndexFrame { get; set; }
         public CoordinateMapper NativeCoordinateMapper { get { return KinectSensor.GetDefault().CoordinateMapper; } }
 
+        public static MockLiveFrame GetFakeLiveFrame()
+        {
+            MockLiveFrame result = new MockLiveFrame();
+            result.NativeColorFrame = new MockColorFrame();
+            result.NativeDepthFrame = new MockDepthFrame();
+            result.NativeInfraredFrame = new MockInfraredFrame();
+            result.NativeBodyFrame = new MockBodyFrame();
+            result.NativeBodyIndexFrame = new MockBodyIndexFrame();
+
+            return result;
+        }
     }
 }
