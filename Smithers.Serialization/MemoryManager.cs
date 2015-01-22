@@ -14,7 +14,7 @@ namespace Smithers.Serialization
         Queue<MemoryFrame> _writableMemory;
         Queue<MemoryFrame> _serializeableFrames;
 
-        public MemoryFrame[] _frames;
+        private MemoryFrame[] _frames;
         public int _framesConsideredForWritingToDisk = 0;
 
         public MemoryManager(int nMemoryFrames)
@@ -28,6 +28,15 @@ namespace Smithers.Serialization
                 _frames[i] = new MemoryFrame();
                 _writableMemory.Enqueue(_frames[i]);
             }
+        }
+
+        public void ClearFrames()
+        {
+            foreach (MemoryFrame frame in _frames)
+            {
+                frame.Clear();
+            }
+            _framesConsideredForWritingToDisk = 0;
         }
 
         public void Dispose()

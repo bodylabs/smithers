@@ -70,9 +70,9 @@ namespace Smithers.Sessions
             get
             {
                 if (this.Shots.Count == 0)
-                    return ShotDefinition.DEFAULT.MaximumFrameCount;
+                    return ShotDefinition.DEFAULT.MemoryFrameCount;
                 else
-                    return this.Shots.Max(x => x.ShotDefinition.MaximumFrameCount);
+                    return this.Shots.Max(x => x.ShotDefinition.MemoryFrameCount);
             }
         }
     }
@@ -89,10 +89,31 @@ namespace Smithers.Sessions
         public int ShotDuration { get { return 100; } }
 
         /// <summary>
+        /// How many Buffers are allocated for a given Shot
+        /// </summary>
+        public int MemoryFrameCount { get { return 50; } }
+        
+        /// <summary>
         /// Maximum frames which will be recorded. If more frames arrive during
         /// ShotDuration, subsequent frames will be discarded.
         /// </summary>
-        public int MaximumFrameCount { get { return 50; } }
+        virtual public int FramesToCapture { get { return 100; } }
+    }
+
+    public class ShotDefinitionVariableFrames : ShotDefinition
+    {
+        private int _nFramesToRecord;
+        public ShotDefinitionVariableFrames(int nFramesToRecord)
+        {
+            _nFramesToRecord = nFramesToRecord;
+        }
+
+        /// <summary>
+        /// Maximum frames which will be recorded. If more frames arrive during
+        /// ShotDuration, subsequent frames will be discarded.
+        /// </summary>
+        override
+        public int FramesToCapture { get { return _nFramesToRecord; } }
     }
 
     public class Shot<TShotDefinition, TSavedItem>

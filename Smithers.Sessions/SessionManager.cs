@@ -70,8 +70,10 @@ namespace Smithers.Sessions
         TShot _capturingShot;
         TShot _writingShot;
 
+        Thread _serializationThread;
         MemoryManager _memoryManager;
         int _frameCount;
+        // TODO: different way of signalling that the serialization thread is finished
         MemoryFrame _cancellSerializationFrame;
 
         Task<CalibrationRecord> _calibration;
@@ -127,10 +129,10 @@ namespace Smithers.Sessions
         {
             _session = session;
 
-            _memoryManager = new MemoryManager(session.MaximumFrameCount); // SaveOneFrameToDisk, 
+            _memoryManager = new MemoryManager(session.MaximumFrameCount);
             _cancellSerializationFrame = new MemoryFrame();
-            Thread serializationThread = new Thread(SerializationLoop);
-            serializationThread.Start();
+            _serializationThread = new Thread(SerializationLoop);
+            _serializationThread.Start();
         }
 
         /// <summary>
@@ -239,12 +241,11 @@ namespace Smithers.Sessions
             // (1) Serialize frame data
 
             // TODO: let user choose the amount of frames he wants to have written
-            int framesToCapture = 100;
+            int framesToCapture = _capturingShot.ShotDefinition.FramesToCapture;
 
             if (_frameCount >= framesToCapture)
             {
                 Console.WriteLine(string.Format("Too many frames! Got {0} but we only have allowed for {1}", _frameCount + 1, framesToCapture));
-                _memoryManager.EnqueuSerializationTask(_cancellSerializationFrame);
             }
             else
             {
@@ -265,17 +266,16 @@ namespace Smithers.Sessions
 
             if (_frameCount < framesToCapture) return;
 
-            Console.WriteLine("Enough frames came in");
-
-            // TODO: The notion of various shots is dismissed in this current state of the code
-            
-            /*
             // (2) Move to the next shot
+
+            // Signal to the serialization thread that it should finish serializing
+            _memoryManager.EnqueuSerializationTask(_cancellSerializationFrame);
+
             string message;
             if (!ValidateShot(out message))
             {
-                this.ClearFrames();
-
+                _memoryManager.ClearFrames();
+                _frameCount = 0;
                 var ea2 = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot, message);
 
                 _capturingShot = null;
@@ -288,39 +288,41 @@ namespace Smithers.Sessions
 
             var ea = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot, message);
 
-            _writingShot = _capturingShot;
+            // _writingShot = _capturingShot;
+
+            // Wait for serialization to finish
+            _serializationThread.Join();
+
             _capturingShot = null;
 
             if (ShotCompletedSuccess != null)
                 ShotCompletedSuccess(this, ea);
 
             FinishShot();
-            */
-
         }
 
         private async void FinishShot()
         {
-            // Perform calibration if we haven't already
-            CalibrationRecord record = await _calibration;
+            //// Perform calibration if we haven't already
+            // CalibrationRecord record = await _calibration;
 
-            try
-            {
-                await Task.Run(() => SaveFrameData());
-            }
-            catch (Exception e)
-            {
-                this.ClearFrames();
+            //try
+            //{
+            //    await Task.Run(() => SaveFrameData());
+            //}
+            //catch (Exception e)
+            //{
+            //    this.ClearFrames();
 
-                var ea = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_writingShot, "An error occurred while saving", e);
+            //    var ea = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_writingShot, "An error occurred while saving", e);
 
-                _writingShot = null;
+            //    _writingShot = null;
 
-                if (ShotSavedError != null)
-                    ShotSavedError(this, ea);
+            //    if (ShotSavedError != null)
+            //        ShotSavedError(this, ea);
 
-                return;
-            }
+            //    return;
+            //}
 
             _writingShot.Completed = true;
 
@@ -329,7 +331,8 @@ namespace Smithers.Sessions
             await Task.Run(() => JSONHelper.Instance.Serialize(_session.GetMetadata(), metadataPath));
 
             // Clear the frames to make sure we don't use them again
-            this.ClearFrames();
+            _memoryManager.ClearFrames();
+            _frameCount = 0;
 
             var ea2 = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_writingShot);
 
@@ -339,6 +342,9 @@ namespace Smithers.Sessions
                 ShotSavedSuccess(this, ea2);
 
             PrepareForNextShot();
+
+            _serializationThread = new Thread(SerializationLoop);
+            _serializationThread.Start();
 
             if (_nextShot == null)
             {
@@ -425,6 +431,7 @@ namespace Smithers.Sessions
             return preparedWriters;
         }
 
+        /*
         private void SaveFrameData()
         {
             // NOTE: This function should not be called for now
@@ -448,15 +455,16 @@ namespace Smithers.Sessions
 
                 _writingShot.SavedItems.Add(savedItem);
             }
-        }
+        }*/
         
-
+/*
         private void ClearFrames()
         {
             foreach (MemoryFrame frame in _memoryManager._frames)
                 frame.Clear();
             _frameCount = 0;
         }
+        */
 
         public void DeleteShot(TShot shot)
         {
@@ -476,8 +484,11 @@ namespace Smithers.Sessions
         }
 
 
-        private void SaveOneFrameToDisk(MemoryFrame memoryBlockToSerialize) 
+        private async void SaveOneFrameToDisk(MemoryFrame memoryBlockToSerialize) 
         {
+            // Perform calibration if we haven't already
+            CalibrationRecord record = await _calibration;
+
             _writingShot = _capturingShot;
             var preparedWriters = PrepareWritersForOneFrame(_writingShot, memoryBlockToSerialize);
 
