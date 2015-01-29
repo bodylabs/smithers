@@ -74,6 +74,7 @@ namespace Smithers.Sessions
         MemoryManager _memoryManager;
         int _frameCount;
 
+        object _lockObject = new object();
         Task<CalibrationRecord> _calibration;
 
         FrameReader _reader;
@@ -127,9 +128,10 @@ namespace Smithers.Sessions
         {
             _session = session;
 
-            _memoryManager = new MemoryManager(session.MaximumFrameCount);
+            // NOTE: The memory manager can´t be initialised here or it will use the default maxframecount of 50
+            // _memoryManager = new MemoryManager(session.MaximumFrameCount);
             _serializationThread = new Thread(SerializationLoop);
-            _serializationThread.Start();
+            // _serializationThread.Start();
         }
 
         /// <summary>
@@ -145,7 +147,9 @@ namespace Smithers.Sessions
 
             // We fire this event here to avoid doing actual work in the constructor,
             // and to give the caller a chance to register for the ReadyForShot event.
-            PrepareForNextShot();
+            
+            // TODO: Readd this?
+            // PrepareForNextShot();
         }
 
         /// <summary>
@@ -165,7 +169,19 @@ namespace Smithers.Sessions
             }
             else
             {
+                if (_serializationThread.IsAlive)
+                {
+                    _serializationThread.Join();
+                }
+                
                 _nextShot = _session.Shots.Find(x => !x.Completed);
+
+                if (_nextShot != null)
+                {
+                    _memoryManager = new MemoryManager(_nextShot.ShotDefinition.MemoryFrameCount);
+                    _serializationThread = new Thread(SerializationLoop);
+                    _serializationThread.Start();
+                }
             }
 
             if (_nextShot != null && ReadyForShot != null)
@@ -193,12 +209,12 @@ namespace Smithers.Sessions
         {
             while (true)
             {
-                MemoryFrame frameToSerialize = _memoryManager.GetSerializableFrame();
+                MemoryManager.MemoryManagedFrame frameToSerialize = _memoryManager.GetSerializableFrame();
                 if (frameToSerialize == null)
                 {
                     // TODO: wait some time (it is not suspected that serializing 
                     //       is ever faster than the 30fps of the Kinect coming in)
-                    Thread.Sleep(30);
+                    Thread.Sleep(0);
                     
                 }
                 else if (ReferenceEquals(frameToSerialize, _memoryManager.EndSerializationFrame))
@@ -208,8 +224,14 @@ namespace Smithers.Sessions
                 }
                 else 
                 {
-                    SaveOneFrameToDisk(frameToSerialize);
-                    _memoryManager.SetFrameAsWritable(frameToSerialize);
+                   // 
+                    new Thread(() =>
+                        {
+                            SaveOneFrameToDisk(frameToSerialize);
+                            _memoryManager.SetFrameAsWritable(frameToSerialize);
+                            Console.WriteLine(_memoryManager.nWritableBuffers());
+                        }).Start();
+                    
                 }
             }
         }
@@ -222,6 +244,7 @@ namespace Smithers.Sessions
         
         public virtual void FrameArrived(LiveFrame frame)
         {
+            bool bufferAvailable = true;
             // When the first frame arrive, start the calibration operation. This won't work
             // if we try to do it right after calling _sensor.Open().
             if (_calibration == null)
@@ -240,28 +263,34 @@ namespace Smithers.Sessions
             // TODO: let user choose the amount of frames he wants to have written
             int framesToCapture = _capturingShot.ShotDefinition.FramesToCapture;
 
+            /*
             if (_frameCount >= framesToCapture)
             {
                 Console.WriteLine(string.Format("Too many frames! Got {0} but we only have allowed for {1}", _frameCount + 1, framesToCapture));
             }
             else
             {
-                MemoryFrame frameToWriteTo = _memoryManager.GetWritableBuffer();
+             */
+                MemoryManager.MemoryManagedFrame frameToWriteTo = _memoryManager.GetWritableBuffer();
                 if (frameToWriteTo == null)
                 {
+                    bufferAvailable = false;
                     Console.WriteLine("There is no memory to write the frame data to, frame is dismissed!");
                 } 
                 else
                 {
-                    frameToWriteTo.Update(frame, _serializer);
+                    bufferAvailable = true;
+                    frameToWriteTo.frame.Update(frame, _serializer);
+                    frameToWriteTo.index = _frameCount;
                     _memoryManager.EnqueuSerializationTask(frameToWriteTo);
                 }
-            }
+            //}
 
             // Increment whether we saved the data or not (this allows an improved error message)
             _frameCount += 1;
 
-            if (_frameCount < framesToCapture) return;
+            // if (_frameCount < framesToCapture) return;
+            if (bufferAvailable) return;
 
             // (2) Move to the next shot
 
@@ -395,6 +424,7 @@ namespace Smithers.Sessions
         {
             var preparedWriters = new List<Tuple<IWriter, TSavedItem>>();
 
+            /*
             IWriter calibrationWriter = new CalibrationWriter(_calibration.Result);
 
             preparedWriters.Add(new Tuple<IWriter, TSavedItem>(
@@ -406,6 +436,7 @@ namespace Smithers.Sessions
                     Path = calibrationWriter.Type.Name + calibrationWriter.FileExtension,
                 }
             ));
+             * */
 
             int i = 0;
 
@@ -482,7 +513,7 @@ namespace Smithers.Sessions
         }
 
 
-        private async void SaveOneFrameToDisk(MemoryFrame memoryBlockToSerialize) 
+        private async void SaveOneFrameToDisk(MemoryManager.MemoryManagedFrame memoryBlockToSerialize) 
         {
             // Perform calibration if we haven't already
             CalibrationRecord record = await _calibration;
@@ -509,10 +540,10 @@ namespace Smithers.Sessions
             }
         }
 
-        protected virtual IEnumerable<Tuple<IWriter, TSavedItem>> PrepareWritersForOneFrame(TShot shot, MemoryFrame frame)
+        protected virtual IEnumerable<Tuple<IWriter, TSavedItem>> PrepareWritersForOneFrame(TShot shot, MemoryManager.MemoryManagedFrame frame)
         {
             var preparedWriters = new List<Tuple<IWriter, TSavedItem>>();
-
+            /*
             IWriter calibrationWriter = new CalibrationWriter(_calibration.Result);
 
             preparedWriters.Add(new Tuple<IWriter, TSavedItem>(
@@ -524,9 +555,10 @@ namespace Smithers.Sessions
                     Path = calibrationWriter.Type.Name + calibrationWriter.FileExtension,
                 }
             ));
+             * */
 
-
-            foreach (IWriter writer in WritersForFrame(frame, _memoryManager._framesConsideredForWritingToDisk))
+            Console.WriteLine("blablabla {0}", frame.index);
+            foreach (IWriter writer in WritersForFrame(frame.frame, frame.index))
             {
                 preparedWriters.Add(new Tuple<IWriter, TSavedItem>(
                     writer,
@@ -534,13 +566,16 @@ namespace Smithers.Sessions
                     {
                         Type = writer.Type,
                         Timestamp = writer.Timestamp,
-                        Path = GeneratePath(shot, frame, _memoryManager._framesConsideredForWritingToDisk, writer),
+                        Path = GeneratePath(shot, frame.frame, frame.index, writer),
                     }
                 ));
             }
 
             // TODO: lock to make thread safe?
-            _memoryManager._framesConsideredForWritingToDisk += 1;
+            lock(_lockObject)
+            {
+                _memoryManager._framesConsideredForWritingToDisk += 1;
+            }
 
             return preparedWriters;
         }

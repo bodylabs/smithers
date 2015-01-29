@@ -11,37 +11,58 @@ namespace Smithers.Serialization
     public class MemoryManager : IDisposable
     {
         object _lockObject = new object();
-        Queue<MemoryFrame> _writableMemory;
-        Queue<MemoryFrame> _serializeableFrames;
 
-        private MemoryFrame[] _frames;
+        public class MemoryManagedFrame
+        {
+            public MemoryFrame frame;
+            public int index;
+        }
+
+        Queue<MemoryManagedFrame> _writableMemory;
+        Queue<MemoryManagedFrame> _serializeableFrames;
+
+        private MemoryManagedFrame[] _frames;
         public int _framesConsideredForWritingToDisk = 0;
 
         // TODO: different way of signalling that the serialization thread is finished
-        MemoryFrame _endSerializationFrame;
-        public MemoryFrame EndSerializationFrame { get { return _endSerializationFrame; } }
+        MemoryManagedFrame _endSerializationFrame;
+        public MemoryManagedFrame EndSerializationFrame { get { return _endSerializationFrame; } }
 
         public MemoryManager(int nMemoryFrames)
         {
-            _frames = new MemoryFrame[nMemoryFrames];
-            _writableMemory = new Queue<MemoryFrame>(nMemoryFrames);
-            _serializeableFrames = new Queue<MemoryFrame>(nMemoryFrames);
+            _frames = new MemoryManagedFrame[nMemoryFrames];
+            _writableMemory = new Queue<MemoryManagedFrame>(nMemoryFrames);
+            _serializeableFrames = new Queue<MemoryManagedFrame>(nMemoryFrames);
 
             for (int i = 0; i < _frames.Length; i += 1)
             {
-                _frames[i] = new MemoryFrame();
+                _frames[i] = new MemoryManagedFrame();
+                _frames[i].frame = new MemoryFrame();
+                _frames[i].index = -1;
+                
                 _writableMemory.Enqueue(_frames[i]);
             }
 
-            _endSerializationFrame = new MemoryFrame();
+            _endSerializationFrame = new MemoryManagedFrame();
+            
+        }
+
+        public int nWritableBuffers()
+        {
+            lock (_lockObject)
+            {
+                return _writableMemory.Count;
+            }
         }
 
         public void ClearFrames()
         {
+            /*
             foreach (MemoryFrame frame in _frames)
             {
                 frame.Clear();
-            }
+            
+             * */
             _framesConsideredForWritingToDisk = 0;
         }
 
@@ -51,15 +72,11 @@ namespace Smithers.Serialization
             _serializeableFrames.Clear();
             _lockObject = null;
             _framesConsideredForWritingToDisk = 0;
-            foreach (MemoryFrame frame in _frames)
-            {
-                frame.Clear();
-            }
             _frames = null;
 
         }
 
-        public MemoryFrame GetWritableBuffer()
+        public MemoryManagedFrame GetWritableBuffer()
         {
             lock (_lockObject)
             {
@@ -69,13 +86,12 @@ namespace Smithers.Serialization
                 }
                 else
                 {
-                    MemoryFrame memoryBlockToWriteTo = _writableMemory.Dequeue();
-                    return memoryBlockToWriteTo;
+                    return _writableMemory.Dequeue();
                 }
             }
         }
 
-        public MemoryFrame GetSerializableFrame()
+        public MemoryManagedFrame GetSerializableFrame()
         {
             lock (_lockObject)
             {
@@ -85,13 +101,12 @@ namespace Smithers.Serialization
                 }
                 else
                 {
-                    MemoryFrame frameToSerialize = _serializeableFrames.Dequeue();
-                    return frameToSerialize;
+                    return _serializeableFrames.Dequeue(); ;
                 }
             }
         }
 
-        public void SetFrameAsWritable(MemoryFrame frame)
+        public void SetFrameAsWritable(MemoryManagedFrame frame)
         {
             lock (_lockObject)
             {
@@ -100,7 +115,7 @@ namespace Smithers.Serialization
         }
 
 
-        public void EnqueuSerializationTask(MemoryFrame frameToSerialize)
+        public void EnqueuSerializationTask(MemoryManagedFrame frameToSerialize)
         {
             lock (_lockObject)
             {

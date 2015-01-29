@@ -311,11 +311,16 @@ namespace Smithers.Serialization
             object result = new
             {
                 FloorClipPlane = frame._isKinectData ? 
-                                 kinectFrame.NativeBodyFrame.FloorClipPlane.ToArray() :
+                                 //kinectFrame.NativeBodyFrame.FloorClipPlane.ToArray() :
+                                 FrameSerializer.toArray(kinectFrame.NativeBodyFrame.FloorClipPlane) :
                                  new float[]{0, 0, 0, 0},
                 Bodies = serializedBodies
             };
             return new Tuple<object, TimeSpan>(result, kinectFrame.NativeBodyFrame.RelativeTime);
+        }
+
+        public static float[] toArray(Vector4 vec) {
+            return new float[] { vec.X, vec.Y, vec.Z, vec.W };
         }
     }
 }
