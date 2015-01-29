@@ -162,9 +162,11 @@ namespace Smithers.Serialization
 
         public Tuple<BitmapSource, TimeSpan> CaptureInfraredFrameBitmap(LiveFrame frame, byte[] buffer)
         {
-            MockLiveFrame mockFrame = (MockLiveFrame)frame;
+            dynamic kinectFrame = frame._isKinectData ?
+                                  frame :
+                                  (MockLiveFrame)frame;
             
-            var infraredFrame = mockFrame.NativeInfraredFrame;
+            var infraredFrame = kinectFrame.NativeInfraredFrame;
 
             int width = infraredFrame.FrameDescription.Width;
             int height = infraredFrame.FrameDescription.Height;
@@ -177,8 +179,11 @@ namespace Smithers.Serialization
 
         public Tuple<BitmapSource, TimeSpan> CaptureDepthFrameBitmap(LiveFrame frame, byte[] buffer)
         {
-            MockLiveFrame mockFrame = (MockLiveFrame)frame;
-            var depthFrame = mockFrame.NativeDepthFrame;
+            dynamic kinectFrame = frame._isKinectData ?
+                                  frame :
+                                  (MockLiveFrame)frame;
+
+            var depthFrame = kinectFrame.NativeDepthFrame;
 
             int width = depthFrame.FrameDescription.Width;
             int height = depthFrame.FrameDescription.Height;
@@ -195,8 +200,11 @@ namespace Smithers.Serialization
 
         public Tuple<BitmapSource, TimeSpan> CaptureBodyIndexFrameBitmap(LiveFrame frame, byte[] buffer)
         {
-            MockLiveFrame mockFrame = (MockLiveFrame)frame;
-            var bodyIndexFrame = mockFrame.NativeBodyIndexFrame;
+            dynamic kinectFrame = frame._isKinectData ?
+                                  frame :
+                                  (MockLiveFrame)frame;
+          
+            var bodyIndexFrame = kinectFrame.NativeBodyIndexFrame;
 
             int width = bodyIndexFrame.FrameDescription.Width;
             int height = bodyIndexFrame.FrameDescription.Height;
@@ -232,8 +240,11 @@ namespace Smithers.Serialization
         {
             ValidateBuffer(buffer, Frame.COLOR_WIDTH, Frame.COLOR_HEIGHT, COLOR_BYTES_PER_PIXEL);
 
-            MockLiveFrame mockFrame = (MockLiveFrame)frame;
-            var colorFrame = mockFrame.NativeColorFrame;
+            dynamic kinectFrame = frame._isKinectData ?
+                      frame :
+                      (MockLiveFrame)frame;
+
+            var colorFrame = kinectFrame.NativeColorFrame;
 
             colorFrame.CopyConvertedFrameDataToArray(buffer, ColorImageFormat.Bgra);
 
@@ -279,25 +290,32 @@ namespace Smithers.Serialization
 
         public Tuple<object, TimeSpan> SerializeSkeletonData(LiveFrame frame)
         {
+            dynamic kinectFrame = frame;
             List<object> serializedBodies = new List<object>();
-            Body firstBody = frame.FirstBody;
+            Body firstBody = kinectFrame.FirstBody;
             if (firstBody != null)
             {
                 serializedBodies.Add(SerializeBody(firstBody, true));
             }
-            foreach (Body body in frame.TrackedBodies)
+            foreach (Body body in kinectFrame.TrackedBodies)
             {
                 if (body == firstBody) continue;
                 serializedBodies.Add(SerializeBody(body));
             }
 
-            MockLiveFrame mockFrame = (MockLiveFrame)frame;
+            if (!frame._isKinectData)
+            {
+                kinectFrame = (MockLiveFrame)frame;
+            }
+
             object result = new
             {
-                FloorClipPlane = mockFrame.NativeBodyFrame.FloorClipPlane.ToArray(),
+                FloorClipPlane = frame._isKinectData ? 
+                                 kinectFrame.NativeBodyFrame.FloorClipPlane.ToArray() :
+                                 new float[]{0, 0, 0, 0},
                 Bodies = serializedBodies
             };
-            return new Tuple<object, TimeSpan>(result, mockFrame.NativeBodyFrame.RelativeTime);
+            return new Tuple<object, TimeSpan>(result, kinectFrame.NativeBodyFrame.RelativeTime);
         }
     }
 }

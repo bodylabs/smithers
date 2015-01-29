@@ -12,7 +12,7 @@ namespace Smithers.Reading.FrameData.Mock
     {
         public MockLiveFrame() : base(KinectSensor.GetDefault())
         {
-            
+            _isKinectData = false;
         }
         public MockColorFrame NativeColorFrame { get; set; }
         public MockDepthFrame NativeDepthFrame { get; set; }
