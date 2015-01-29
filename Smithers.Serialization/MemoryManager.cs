@@ -17,6 +17,10 @@ namespace Smithers.Serialization
         private MemoryFrame[] _frames;
         public int _framesConsideredForWritingToDisk = 0;
 
+        // TODO: different way of signalling that the serialization thread is finished
+        MemoryFrame _endSerializationFrame;
+        public MemoryFrame EndSerializationFrame { get { return _endSerializationFrame; } }
+
         public MemoryManager(int nMemoryFrames)
         {
             _frames = new MemoryFrame[nMemoryFrames];
@@ -28,6 +32,8 @@ namespace Smithers.Serialization
                 _frames[i] = new MemoryFrame();
                 _writableMemory.Enqueue(_frames[i]);
             }
+
+            _endSerializationFrame = new MemoryFrame();
         }
 
         public void ClearFrames()
@@ -85,7 +91,7 @@ namespace Smithers.Serialization
             }
         }
 
-        public void OnFrameSerialized(MemoryFrame frame)
+        public void SetFrameAsWritable(MemoryFrame frame)
         {
             lock (_lockObject)
             {
@@ -99,6 +105,14 @@ namespace Smithers.Serialization
             lock (_lockObject)
             {
                 _serializeableFrames.Enqueue(frameToSerialize);
+            }
+        }
+
+        public void StopSerialization()
+        {
+            lock (_lockObject)
+            {
+                _serializeableFrames.Enqueue(_endSerializationFrame);
             }
         }
     }

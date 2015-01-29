@@ -91,7 +91,7 @@ namespace Smithers.Sessions
         /// <summary>
         /// How many Buffers are allocated for a given Shot
         /// </summary>
-        public int MemoryFrameCount { get { return 50; } }
+        virtual public int MemoryFrameCount { get { return 50; } }
         
         /// <summary>
         /// Maximum frames which will be recorded. If more frames arrive during
@@ -103,9 +103,11 @@ namespace Smithers.Sessions
     public class ShotDefinitionVariableFrames : ShotDefinition
     {
         private int _nFramesToRecord;
-        public ShotDefinitionVariableFrames(int nFramesToRecord)
+        private int _nMemoryFrames;
+        public ShotDefinitionVariableFrames(int nFramesToRecord, int nMemoryFrames)
         {
             _nFramesToRecord = nFramesToRecord;
+            _nMemoryFrames = nMemoryFrames;
         }
 
         /// <summary>
@@ -114,6 +116,9 @@ namespace Smithers.Sessions
         /// </summary>
         override
         public int FramesToCapture { get { return _nFramesToRecord; } }
+
+        override
+        public int MemoryFrameCount { get { return _nMemoryFrames; } }
     }
 
     public class Shot<TShotDefinition, TSavedItem>

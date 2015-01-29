@@ -73,8 +73,6 @@ namespace Smithers.Sessions
         Thread _serializationThread;
         MemoryManager _memoryManager;
         int _frameCount;
-        // TODO: different way of signalling that the serialization thread is finished
-        MemoryFrame _cancellSerializationFrame;
 
         Task<CalibrationRecord> _calibration;
 
@@ -130,7 +128,6 @@ namespace Smithers.Sessions
             _session = session;
 
             _memoryManager = new MemoryManager(session.MaximumFrameCount);
-            _cancellSerializationFrame = new MemoryFrame();
             _serializationThread = new Thread(SerializationLoop);
             _serializationThread.Start();
         }
@@ -204,7 +201,7 @@ namespace Smithers.Sessions
                     Thread.Sleep(30);
                     
                 }
-                else if (frameToSerialize == _cancellSerializationFrame)
+                else if (ReferenceEquals(frameToSerialize, _memoryManager.EndSerializationFrame))
                 {
                     Console.WriteLine("Returning from Serialization Thread");
                     return;
@@ -212,7 +209,7 @@ namespace Smithers.Sessions
                 else 
                 {
                     SaveOneFrameToDisk(frameToSerialize);
-                    _memoryManager.OnFrameSerialized(frameToSerialize);
+                    _memoryManager.SetFrameAsWritable(frameToSerialize);
                 }
             }
         }
@@ -269,7 +266,7 @@ namespace Smithers.Sessions
             // (2) Move to the next shot
 
             // Signal to the serialization thread that it should finish serializing
-            _memoryManager.EnqueuSerializationTask(_cancellSerializationFrame);
+            _memoryManager.StopSerialization();
 
             string message;
             if (!ValidateShot(out message))
@@ -336,13 +333,14 @@ namespace Smithers.Sessions
 
             var ea2 = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_writingShot);
 
-            _writingShot = null;
 
             if (ShotSavedSuccess != null)
                 ShotSavedSuccess(this, ea2);
 
+            _writingShot = null;
             PrepareForNextShot();
 
+            // TODO: Maybe start new Serialization Thread elsewhere
             _serializationThread = new Thread(SerializationLoop);
             _serializationThread.Start();
 
