@@ -66,8 +66,11 @@ namespace Smithers.Serialization
         /// <returns></returns>
         public Tuple<Blkd, TimeSpan> CaptureMappedFrame(LiveFrame frame, byte[] buffer)
         {
-            // TODO: Maybe this function will never be called for our purposes.
-            var depthFrame = frame.NativeDepthFrame;
+            dynamic kinectFrame = frame._isKinectData ?
+                                  frame :
+                                  (MockLiveFrame)frame;
+            
+            var depthFrame = kinectFrame.NativeDepthFrame;
             CoordinateMapper mapper = frame.NativeCoordinateMapper;
 
             if (buffer.Length != Frame.DEPTH_INFRARED_PIXELS * DEPTH_MAPPING_BYTES_PER_PIXEL)

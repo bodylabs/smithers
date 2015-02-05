@@ -22,7 +22,6 @@ namespace Smithers.Serialization
         Queue<MemoryManagedFrame> _serializeableFrames;
 
         private MemoryManagedFrame[] _frames;
-        public int _framesConsideredForWritingToDisk = 0;
 
         // TODO: different way of signalling that the serialization thread is finished
         MemoryManagedFrame _endSerializationFrame;
@@ -63,7 +62,6 @@ namespace Smithers.Serialization
                 frame.Clear();
             
              * */
-            _framesConsideredForWritingToDisk = 0;
         }
 
         public void Dispose()
@@ -71,7 +69,6 @@ namespace Smithers.Serialization
             _writableMemory.Clear();
             _serializeableFrames.Clear();
             _lockObject = null;
-            _framesConsideredForWritingToDisk = 0;
             _frames = null;
 
         }
