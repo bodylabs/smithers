@@ -78,9 +78,39 @@ namespace Smithers.Sessions
     }
 
     /// <summary>
+    /// This struct holds boolean flags that indicate which data incoming from the Kinect 
+    /// we actually need to save to disk.
+    /// </summary>
+    public struct SerializationFlags
+    {
+        public bool SerializeColor;
+        public bool SerializeDepth;
+        public bool SerializeInfrared;
+        public bool SerializeSkeleton;
+        public bool SerializeDepthMapping;
+
+        /// <summary>
+        /// Constructor that assings the flags as they are passed in
+        /// </summary>
+        public SerializationFlags(bool color,
+                                  bool depth,
+                                  bool infrared,
+                                  bool skeleton,
+                                  bool depthMapping)
+        {
+            SerializeColor = color;
+            SerializeDepth = depth;
+            SerializeInfrared = infrared;
+            SerializeSkeleton = skeleton;
+            SerializeDepthMapping = depthMapping;
+        }
+    }
+
+    /// <summary>
     /// Placeholder base class, available for subclassing if needed.
     /// </summary>
     public class ShotDefinition {
+
         public static readonly ShotDefinition DEFAULT = new ShotDefinition();
 
         /// <summary>
@@ -98,27 +128,49 @@ namespace Smithers.Sessions
         /// ShotDuration, subsequent frames will be discarded.
         /// </summary>
         virtual public int FramesToCapture { get { return 100; } }
+
+        
+        /// <summary>
+        /// Default SerializationFlags, enabling everything but DepthMapping
+        /// </summary>
+        virtual public SerializationFlags SerializationFlags
+        { 
+            get 
+            { 
+                return new SerializationFlags(true, true, true, true, false);
+            }
+        } 
     }
 
     public class ShotDefinitionVariableFrames : ShotDefinition
     {
         private int _nFramesToRecord;
         private int _nMemoryFrames;
-        public ShotDefinitionVariableFrames(int nFramesToRecord, int nMemoryFrames)
+        private SerializationFlags _serializationFlags; 
+
+        public ShotDefinitionVariableFrames(int nFramesToRecord, int nMemoryFrames, SerializationFlags flags)
         {
             _nFramesToRecord = nFramesToRecord;
             _nMemoryFrames = nMemoryFrames;
+            _serializationFlags = flags;
         }
 
         /// <summary>
         /// Maximum frames which will be recorded. If more frames arrive during
-        /// ShotDuration, subsequent frames will be discarded.
+        /// ShotDuration, the capture will be stopped
         /// </summary>
+        /// <remarks>
+        /// If this is set to -1, then the captures runs until the buffers are full or until 
+        /// the user presses the stop button.
+        /// </remarks>
         override
         public int FramesToCapture { get { return _nFramesToRecord; } }
 
         override
         public int MemoryFrameCount { get { return _nMemoryFrames; } }
+
+        override
+        public SerializationFlags SerializationFlags { get { return _serializationFlags; } }
     }
 
     public class Shot<TShotDefinition, TSavedItem>

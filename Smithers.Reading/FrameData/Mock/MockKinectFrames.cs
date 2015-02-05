@@ -9,6 +9,15 @@ using Microsoft.Kinect;
 
 namespace Smithers.Reading.FrameData.Mock
 {
+    /*
+     * These classes reimplemented the functions that the FrameSerializer uses on the real Kinect ColorFrame,
+     * DepthFrame etc.
+     * 
+     * The CopyFrameDataToArray functions just fill the Buffer with a random pattern in order to see differences
+     * in the written jpg/png files.
+     */
+
+
     public class MockColorFrame
     {
         public MockFrameDescription FrameDescription {get { return new MockFrameDescription();}}

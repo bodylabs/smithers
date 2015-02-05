@@ -395,17 +395,23 @@ namespace Smithers.Sessions
             _stopButtonClicked = true;
         }
 
-        protected virtual IEnumerable<IWriter> WritersForFrame(MemoryFrame frame, int frameIndex)
+        protected virtual IEnumerable<IWriter> WritersForFrame(TShot shot, MemoryFrame frame, int frameIndex)
         {
             var writers = new List<IWriter>();
 
-            // TODO: We probably need everyting except the Depth Mapping, but everything should be 
-            // configurable in the GUI
-            writers.Add(new ColorFrameWriter(frame, _serializer));                
-            writers.Add(new DepthMappingWriter(frame, _serializer));
-            writers.Add(new DepthFrameWriter(frame, _serializer));
-            writers.Add(new InfraredFrameWriter(frame, _serializer));
-            writers.Add(new SkeletonWriter(frame, _serializer));
+            // Add Writers depending on the ShotDefinition´s SerializationFlags
+            SerializationFlags serializationFlags = shot.ShotDefinition.SerializationFlags;
+
+            if (serializationFlags.SerializeColor) 
+                writers.Add(new ColorFrameWriter(frame, _serializer));
+            if (serializationFlags.SerializeDepthMapping) 
+                writers.Add(new DepthMappingWriter(frame, _serializer));
+            if (serializationFlags.SerializeDepth) 
+                writers.Add(new DepthFrameWriter(frame, _serializer));
+            if (serializationFlags.SerializeInfrared) 
+                writers.Add(new InfraredFrameWriter(frame, _serializer));
+            if (serializationFlags.SerializeSkeleton) 
+                writers.Add(new SkeletonWriter(frame, _serializer));
 
             return writers;
         }
@@ -498,7 +504,7 @@ namespace Smithers.Sessions
             // TODO: Remove this completely after testing with the new Thread Scheme
             // Console.WriteLine("blablabla {0}", index);
 
-            foreach (IWriter writer in WritersForFrame(memoryFrame, index))
+            foreach (IWriter writer in WritersForFrame(shot, memoryFrame, index))
             {
                 preparedWriters.Add(new Tuple<IWriter, TSavedItem>(
                     writer,
