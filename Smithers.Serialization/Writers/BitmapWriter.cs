@@ -46,7 +46,6 @@ namespace Smithers.Serialization.Writers
         public override void Write(Stream stream)
         {
             PngBitmapEncoder encoder = new PngBitmapEncoder();
-           //  BitmapEncoder encoder = new BmpBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(this.BitmapSource));
             encoder.Save(stream);
         }
@@ -63,8 +62,6 @@ namespace Smithers.Serialization.Writers
         public override void Write(Stream stream)
         {
             JpegBitmapEncoder encoder = new JpegBitmapEncoder();
-            // BitmapEncoder encoder = new BmpBitmapEncoder();
-
             encoder.Frames.Add(BitmapFrame.Create(this.BitmapSource));
             encoder.Save(stream);
         }
