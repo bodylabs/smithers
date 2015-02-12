@@ -384,12 +384,18 @@ namespace Smithers.Sessions
 
             // 0 -> Frame_001, 1 -> Frame_002, etc.
             string frameName = string.Format("Frame_{0:D3}", frameIndex + 1);
-
+            TimeSpan? timespan = writer.Timestamp;
+            bool timespanHasValue = timespan.HasValue;
+            string timeStamp = timespanHasValue ? 
+                               timespan.Value.TotalMilliseconds.ToString() :
+                               "";
             string fileName = string.Format(
-                "{0}{1}{2}{3}",
+                "{0}{1}{2}{3}{4}{5}",
                 shotName,
                 shotName == null ? "" : "_",
                 frameName,
+                timespanHasValue ? "_Time_" : "",
+                timeStamp,
                 writer.FileExtension
             );
 
