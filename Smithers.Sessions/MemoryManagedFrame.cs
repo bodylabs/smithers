@@ -4,7 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Smithers.Serialization
+using Smithers.Serialization;
+
+namespace Smithers.Sessions
 {
     public class MemoryManagedFrame
     {

@@ -5,8 +5,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Smithers.Serialization;
 
-namespace Smithers.Serialization
+namespace Smithers.Sessions
 {
     /// <summary>
     /// The MemoryManager class is responsible for providing the Application with a free buffer
@@ -20,23 +21,18 @@ namespace Smithers.Serialization
     /// in a thread safe manner.
     /// </remarks>
     /// 
-    /// <typeparam name="MemoryManagedFrame">
+    /// <typeparam name="TMemoryManagedFrame">
     /// The type of frame to manage. The type has to be new()-able 
     /// since the MemoryManager is in charge of allocating the memory for it.
     /// </typeparam>
-    public class MemoryManager<MemoryManagedFrame> : IDisposable
-        where MemoryManagedFrame : new()
+    public class MemoryManager<TMemoryManagedFrame> : IDisposable
+        where TMemoryManagedFrame : new()
     {
 
-        private MemoryManagedFrame[] _frames;
-        Queue<MemoryManagedFrame> _writableMemory;
-        Queue<MemoryManagedFrame> _serializeableFrames;
+        private TMemoryManagedFrame[] _frames;
+        Queue<TMemoryManagedFrame> _writableMemory;
+        Queue<TMemoryManagedFrame> _serializeableFrames;
         object _lockObject;
-
-        // TODO: different way of signalling that the serialization thread is finished
-        MemoryManagedFrame _endSerializationFrame;
-        public MemoryManagedFrame EndSerializationFrame { get { return _endSerializationFrame; } }
-
 
         /// <summary>
         /// Constructs a new MemoryManager with the given amount of buffers/frames to manage.
@@ -44,17 +40,16 @@ namespace Smithers.Serialization
         /// <param name="nMemoryFrames"></param>
         public MemoryManager(int nMemoryFrames)
         {
-            _frames = new MemoryManagedFrame[nMemoryFrames];
-            _writableMemory = new Queue<MemoryManagedFrame>(nMemoryFrames);
-            _serializeableFrames = new Queue<MemoryManagedFrame>(nMemoryFrames);
+            _frames = new TMemoryManagedFrame[nMemoryFrames];
+            _writableMemory = new Queue<TMemoryManagedFrame>(nMemoryFrames);
+            _serializeableFrames = new Queue<TMemoryManagedFrame>(nMemoryFrames);
 
             for (int i = 0; i < _frames.Length; i += 1)
             {
-                _frames[i] = new MemoryManagedFrame();
+                _frames[i] = new TMemoryManagedFrame();
                 _writableMemory.Enqueue(_frames[i]);
             }
 
-            _endSerializationFrame = new MemoryManagedFrame();
             _lockObject = new object();
             
         }
@@ -104,13 +99,13 @@ namespace Smithers.Serialization
         /// Queries and returns a writable buffer if one is available. 
         /// </summary>
         /// <returns>A valid buffer if one is available, null otherwise</returns>
-        public MemoryManagedFrame GetWritableBuffer()
+        public TMemoryManagedFrame GetWritableBuffer()
         {
             lock (_lockObject)
             {
                 if (_writableMemory.Count == 0)
                 {
-                    return default(MemoryManagedFrame);
+                    return default(TMemoryManagedFrame);
                 }
                 else
                 {
@@ -123,13 +118,13 @@ namespace Smithers.Serialization
         /// Queries and returns a frame that is in need of serialization.
         /// </summary>
         /// <returns>A buffer that should be serialized if one is available, null otherwise</returns>
-        public MemoryManagedFrame GetSerializableFrame()
+        public TMemoryManagedFrame GetSerializableFrame()
         {
             lock (_lockObject)
             {
                 if (_serializeableFrames.Count == 0)
                 {
-                    return default(MemoryManagedFrame);
+                    return default(TMemoryManagedFrame);
                 }
                 else
                 {
@@ -142,7 +137,7 @@ namespace Smithers.Serialization
         /// Marks a buffer as being in need of serialization.
         /// </summary>
         /// <param name="frameToSerialize">The frame to be enqueued for serialization</param>
-        public void EnqueuSerializationTask(MemoryManagedFrame frameToSerialize)
+        public void EnqueuSerializationTask(TMemoryManagedFrame frameToSerialize)
         {
             lock (_lockObject)
             {
@@ -157,20 +152,11 @@ namespace Smithers.Serialization
         /// to be able to reuse the buffer.
         /// </summary>
         /// <param name="frame">The frame to be marked as free</param>
-        public void SetFrameAsWritable(MemoryManagedFrame frame)
+        public void SetFrameAsWritable(TMemoryManagedFrame frame)
         {
             lock (_lockObject)
             {
                 _writableMemory.Enqueue(frame);
-            }
-        }
-
-        // TODO: Remove this
-        public void StopSerialization()
-        {
-            lock (_lockObject)
-            {
-                _serializeableFrames.Enqueue(_endSerializationFrame);
             }
         }
     }

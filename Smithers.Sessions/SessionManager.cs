@@ -70,11 +70,10 @@ namespace Smithers.Sessions
         TShot _capturingShot;
         TShot _writingShot;
 
-        Thread _serializationThread;
         MemoryManager<MemoryManagedFrame> _memoryManager;
+        SerializationThreadPool _serializationThreadPool;
         int _frameCount = 0;
         bool _stopButtonClicked = false;
-        bool _finishingShot = false;
 
         object _lockObject = new object();
         Task<CalibrationRecord> _calibration;
@@ -130,10 +129,9 @@ namespace Smithers.Sessions
         {
             _session = session;
 
-            // NOTE: The memory manager can´t be initialised here or it will use the default maxframecount of 50
+            // NOTE: The memory manager and the SerializationThreadPool can´t be initialised here or it will use the default maxframecount of 50
+            
             // _memoryManager = new MemoryManager(session.MaximumFrameCount);
-            _serializationThread = new Thread(SerializationLoop);
-            // _serializationThread.Start();
         }
 
         /// <summary>
@@ -146,12 +144,6 @@ namespace Smithers.Sessions
 
             _reader = reader;
             _reader.AddResponder(this);
-
-            // We fire this event here to avoid doing actual work in the constructor,
-            // and to give the caller a chance to register for the ReadyForShot event.
-            
-            // TODO: Readd this?
-            // PrepareForNextShot();
         }
 
         /// <summary>
@@ -171,18 +163,16 @@ namespace Smithers.Sessions
             }
             else
             {
-                if (_serializationThread.IsAlive)
-                {
-                    _serializationThread.Join();
-                }
-                
                 _nextShot = _session.Shots.Find(x => !x.Completed);
 
                 if (_nextShot != null)
                 {
+                    Console.WriteLine("Preparing for next shot");
+
+                    // We need a new MemoryManager every time, because the user might want to change the amount of buffers
                     _memoryManager = new MemoryManager<MemoryManagedFrame>(_nextShot.ShotDefinition.MemoryFrameCount);
-                    _serializationThread = new Thread(SerializationLoop);
-                    _serializationThread.Start();
+                    _serializationThreadPool = new SerializationThreadPool(4, _memoryManager, SaveOneFrameToDisk);
+                    _serializationThreadPool.StartSerialization();
                 }
             }
 
@@ -207,37 +197,6 @@ namespace Smithers.Sessions
                 ShotBeginning(this, new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot));
         }
 
-        public void SerializationLoop()
-        {
-            while (true)
-            {
-                MemoryManagedFrame frameToSerialize = _memoryManager.GetSerializableFrame();
-                if (frameToSerialize == null)
-                {
-                    // TODO: wait some time (it is not suspected that serializing 
-                    //       is ever faster than the 30fps of the Kinect coming in)
-                    Thread.Sleep(0);
-                    
-                }
-                else if (ReferenceEquals(frameToSerialize, _memoryManager.EndSerializationFrame))
-                {
-                    Console.WriteLine("Returning from Serialization Thread");
-                    return;
-                }
-                else 
-                {
-                   // 
-                    new Thread(() =>
-                        {
-                            SaveOneFrameToDisk(frameToSerialize);
-                            _memoryManager.SetFrameAsWritable(frameToSerialize);
-                            Console.WriteLine(_memoryManager.nWritableBuffers());
-                        }).Start();
-                    
-                }
-            }
-        }
-
         public virtual bool ValidateShot(out string message)
         {
             message = null;
@@ -256,7 +215,10 @@ namespace Smithers.Sessions
 
             if (_capturingShot == null)
             {
-               //  Console.WriteLine("_capturingShot == null");
+                // We don´t currently capture, so we can return immediately
+
+                // Console.WriteLine("_capturingShot == null");
+                
                 return;
             }
 
@@ -265,59 +227,59 @@ namespace Smithers.Sessions
             // Grab a reference to the current caturing shot because this can apparently
             // be accessed from a different thread or something
             // TODO: Check with the real thread pool later
-            TShot capturingShotReference = _capturingShot;
-            int nFramesToCapture = capturingShotReference.ShotDefinition.FramesToCapture;
 
+            // TShot capturingShotReference = _capturingShot;
+            // int nFramesToCapture = capturingShotReference.ShotDefinition.FramesToCapture;
+            int nFramesToCapture = _capturingShot.ShotDefinition.FramesToCapture;
             MemoryManagedFrame frameToWriteTo = _memoryManager.GetWritableBuffer();
+            Console.WriteLine("{0} free frames to write to", _memoryManager.nWritableBuffers());
             if (frameToWriteTo == null)
             {
                 bufferAvailable = false;
-                Console.WriteLine("There is no memory to write the frame data to, the capture ends now.");
+                Console.WriteLine("There is no memory to write the frame data to. The capture ends now.");
             } 
             else
             {
+                // We successfully received a buffer, now we can fill in the frame data to the buffer
                 bufferAvailable = true;
                 frameToWriteTo.Frame.Update(frame, _serializer);
+                
                 lock (_lockObject)
                 {
                     frameToWriteTo.Index = _frameCount++;
                 }
 
-                _writingShot = capturingShotReference;
+                // The framedata was stored into the buffer, now we can save it to disk
+                // _writingShot = capturingShotReference;
+                _writingShot = _capturingShot;
                 _memoryManager.EnqueuSerializationTask(frameToWriteTo);
             }
 
-
+            // Check if the user pressed the stop button or if the amount of frames to capture is reached
             bool stopCapture = false;
-            if (nFramesToCapture == -1)
+            if (nFramesToCapture == 0)
             {
                 stopCapture = _stopButtonClicked;
+             
+                // We registered the stop button click, set it back to false
+                _stopButtonClicked = false;
             }
             else 
             {
                 stopCapture = _frameCount >= nFramesToCapture;
             }
 
-            
-            if (!stopCapture && bufferAvailable) return;    // Keep receiving frames
 
-            // The Capture should be stopped, wait for serialization to end and prepare for new Shot to come in
-            // (2) Move to the next shot
-
-            // Signal to the serialization thread that it should finish serializing
-
-            lock (_lockObject)
+            if (!stopCapture && bufferAvailable)
             {
-                if (_finishingShot)
-                {
-                    return;
-                } 
-                else
-                {
-                    _finishingShot = true;
-                }
+                // Keep receiving frames
+                return;
             }
-            _memoryManager.StopSerialization();
+
+            // (2) Move to the next shot
+            // The Capture should be stopped, wait for serialization to end and prepare for new Shot to come in
+
+            _serializationThreadPool.EndSerialization();
 
             string message;
             if (!ValidateShot(out message))
@@ -336,13 +298,9 @@ namespace Smithers.Sessions
 
             var ea = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot, message);
 
-            _writingShot = capturingShotReference;
             _capturingShot = null;
 
-            // Wait for serialization to finish
-            // TODO: Change this to manage a thread pool
-            _serializationThread.Join();
-
+            _serializationThreadPool.WaitForSerializationEnd();
 
             if (ShotCompletedSuccess != null)
                 ShotCompletedSuccess(this, ea);
@@ -354,6 +312,8 @@ namespace Smithers.Sessions
         {
             _writingShot.Completed = true;
 
+            // TODO: Is this metadatafile needed?
+
             /*
             string metadataPath = Path.Combine(_session.SessionPath, Session<TMetadata, TShot, TShotDefinition, TSavedItem>.METADATA_FILE);
 
@@ -361,7 +321,8 @@ namespace Smithers.Sessions
             */
 
             // Clear the frames to make sure we don't use them again
-            _memoryManager.ClearFrames();
+            
+            // _memoryManager.ClearFrames();
             _frameCount = 0;
 
             var ea2 = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_writingShot);
@@ -369,30 +330,29 @@ namespace Smithers.Sessions
 
             if (ShotSavedSuccess != null)
                 ShotSavedSuccess(this, ea2);
-
-            // TODO: Set Writing Shot to Null once all the threads have joined. Not possible right now because we spawn
-            //       a thread for each frame. Once a proper thread pool is implemented we can query that to see when we 
-            //       are finished serializing.
             
-            // _writingShot = null;
+            // We are finished writing the frames to disk
+            _writingShot = null;
 
             PrepareForNextShot();
-
-            // TODO: Maybe start new Serialization Thread elsewhere
-            _serializationThread = new Thread(SerializationLoop);
-            _serializationThread.Start();
 
             if (_nextShot == null)
             {
                 if (LastShotFinished != null)
                     LastShotFinished(this, ea2);
             }
-            _finishingShot = false;
         }
 
         public void StopCapture()
         {
-            _stopButtonClicked = true;
+            if (_capturingShot != null)
+            {
+                _stopButtonClicked = true;
+            }
+            else
+            {
+                Console.WriteLine("There is no Capture to stop");  
+            }
         }
 
         protected virtual IEnumerable<IWriter> WritersForFrame(TShot shot, MemoryFrame frame, int frameIndex)
@@ -454,7 +414,7 @@ namespace Smithers.Sessions
         }
 
 
-        private async void SaveOneFrameToDisk(MemoryManagedFrame memoryBlockToSerialize) 
+        public async void SaveOneFrameToDisk(MemoryManagedFrame memoryBlockToSerialize) 
         {
             // Perform calibration if we haven't already
             CalibrationRecord record = await _calibration;
@@ -500,9 +460,6 @@ namespace Smithers.Sessions
                     }
                 ));
             }
-
-            // TODO: Remove this completely after testing with the new Thread Scheme
-            // Console.WriteLine("blablabla {0}", index);
 
             foreach (IWriter writer in WritersForFrame(shot, memoryFrame, index))
             {

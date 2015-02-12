@@ -160,7 +160,7 @@ namespace Smithers.Sessions
         /// ShotDuration, the capture will be stopped
         /// </summary>
         /// <remarks>
-        /// If this is set to -1, then the captures runs until the buffers are full or until 
+        /// If this is set to 0, then the captures runs until the buffers are full or until 
         /// the user presses the stop button.
         /// </remarks>
         override
