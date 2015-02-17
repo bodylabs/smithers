@@ -65,31 +65,37 @@ namespace Smithers.Serialization
         /// </summary>
         /// <param name="frame"></param>
         /// <param name="serializer"></param>
-        public void Update(LiveFrame frame, FrameSerializer serializer)
+        public void UpdateColor(LiveFrame frame, FrameSerializer serializer)
         {
-            // (1) Depth mapping
-
-            // TODO: Dont serialize this
-            _depthMapping = serializer.CaptureMappedFrame(frame, _bufferDepthMapping);
-
-            // (2) Depth
-            _depth = serializer.CaptureDepthFrameBitmap(frame, _bufferDepth);
-            _depth.Item1.Freeze();
-
-            // (3) Infrared
-            _infrared = serializer.CaptureInfraredFrameBitmap(frame, _bufferInfrared);
-            _infrared.Item1.Freeze();
-
-            // (4) Skeleton
-            _skeleton = serializer.SerializeSkeletonData(frame);
-
-            // (5) Color
             _color = serializer.CaptureColorFrameBitmap(frame, _bufferColor);
             _color.Item1.Freeze();
+        }
 
-            // (6) Body index
-            _bodyIndex = serializer.CaptureBodyIndexFrameBitmap(frame, _bufferBodyIndex);
-            _bodyIndex.Item1.Freeze();
+        public void UpdateDepthMapping(LiveFrame frame, FrameSerializer serializer)
+        {
+          _depthMapping = serializer.CaptureMappedFrame(frame, _bufferDepthMapping);
+        }
+
+        public void UpdateDepth(LiveFrame frame, FrameSerializer serializer)
+        {
+          _depth = serializer.CaptureDepthFrameBitmap(frame, _bufferDepth);
+          _depth.Item1.Freeze();
+        }
+        public void UpdateInfrared(LiveFrame frame, FrameSerializer serializer)
+        {
+          _infrared = serializer.CaptureInfraredFrameBitmap(frame, _bufferInfrared);
+          _infrared.Item1.Freeze();
+        }
+
+        public void UpdateSkeleton(LiveFrame frame, FrameSerializer serializer)
+        {
+          _skeleton = serializer.SerializeSkeletonData(frame);
+        }
+
+        public void UpdateBodyIndex(LiveFrame frame, FrameSerializer serializer)
+        {
+          _bodyIndex = serializer.CaptureBodyIndexFrameBitmap(frame, _bufferBodyIndex);
+          _bodyIndex.Item1.Freeze();
         }
 
         public void Clear()

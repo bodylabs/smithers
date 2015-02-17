@@ -254,8 +254,36 @@ namespace Smithers.Sessions
             {
                 // We successfully received a buffer, now we can fill in the frame data to the buffer
                 bufferAvailable = true;
-                frameToWriteTo.Frame.Update(frame, _serializer);
-                
+                frameToWriteTo.Frame.Clear();
+
+                if (_capturingShot.ShotDefinition.SerializationFlags.SerializeColor)
+                {
+                  frameToWriteTo.Frame.UpdateColor(frame, _serializer);
+                }
+
+                if (_capturingShot.ShotDefinition.SerializationFlags.SerializeDepth)
+                {
+                  frameToWriteTo.Frame.UpdateDepth(frame, _serializer);
+                }
+
+                if (_capturingShot.ShotDefinition.SerializationFlags.SerializeDepthMapping)
+                {
+                  frameToWriteTo.Frame.UpdateDepthMapping(frame, _serializer);
+                }
+
+                if (_capturingShot.ShotDefinition.SerializationFlags.SerializeInfrared)
+                {
+                  frameToWriteTo.Frame.UpdateInfrared(frame, _serializer);
+                }
+
+                if (_capturingShot.ShotDefinition.SerializationFlags.SerializeSkeleton)
+                {
+                  frameToWriteTo.Frame.UpdateSkeleton(frame, _serializer);
+                }
+
+                frameToWriteTo.Frame.UpdateBodyIndex(frame, _serializer);
+                          
+
                 lock (_lockObject)
                 {
                     frameToWriteTo.Index = _frameCount++;
