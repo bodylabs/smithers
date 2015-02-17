@@ -382,15 +382,15 @@ namespace Smithers.Sessions
             // Add Writers depending on the ShotDefinition´s SerializationFlags
             SerializationFlags serializationFlags = shot.ShotDefinition.SerializationFlags;
 
-            if (serializationFlags.SerializeColor) 
+            if (serializationFlags.SerializeColor && frame.Color != null) 
                 writers.Add(new ColorFrameWriter(frame, _serializer));
-            if (serializationFlags.SerializeDepthMapping) 
+            if (serializationFlags.SerializeDepthMapping && frame.MappedDepth != null) 
                 writers.Add(new DepthMappingWriter(frame, _serializer));
-            if (serializationFlags.SerializeDepth) 
+            if (serializationFlags.SerializeDepth && frame.Depth != null) 
                 writers.Add(new DepthFrameWriter(frame, _serializer));
-            if (serializationFlags.SerializeInfrared) 
+            if (serializationFlags.SerializeInfrared && frame.Infrared != null) 
                 writers.Add(new InfraredFrameWriter(frame, _serializer));
-            if (serializationFlags.SerializeSkeleton) 
+            if (serializationFlags.SerializeSkeleton && frame.Skeleton != null) 
                 writers.Add(new SkeletonWriter(frame, _serializer));
 
             return writers;
