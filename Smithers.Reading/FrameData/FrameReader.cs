@@ -150,9 +150,9 @@ namespace Smithers.Reading.FrameData
               return;
             }
 
-            
 
-            var result = new LiveFrame(_sensor);
+
+            LiveFrame result = new LiveFrame(_sensor);
             result.NativeColorFrame = multiFrame.ColorFrameReference.AcquireFrame();
             result.NativeDepthFrame = multiFrame.DepthFrameReference.AcquireFrame();
             result.NativeInfraredFrame = multiFrame.InfraredFrameReference.AcquireFrame();
