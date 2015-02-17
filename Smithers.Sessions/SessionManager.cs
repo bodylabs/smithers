@@ -37,6 +37,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Diagnostics;
 
 namespace Smithers.Sessions
 {
@@ -349,12 +350,12 @@ namespace Smithers.Sessions
 
             foreach (DateTime d in my_times)
             {
-              Console.WriteLine("frame arrived at time " + d.ToString("O"));
+              Trace.WriteLine("frame arrived at time " + d.ToString("O"));
             }
 
             foreach (TimeSpan d in my_times_after)
             {
-              Console.WriteLine("time span = " + d.Milliseconds);
+              Trace.WriteLine("time span = " + d.Milliseconds);
             }
 
             my_times.Clear();

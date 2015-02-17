@@ -28,6 +28,7 @@
 using Microsoft.Kinect;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Smithers.Reading.FrameData
 {
@@ -126,12 +127,12 @@ namespace Smithers.Reading.FrameData
 
             foreach(DateTime d in my_times)
             {
-              Console.WriteLine("frame arrived at time " + d.ToString("O"));
+              Trace.WriteLine("frame arrived at time " + d.ToString("O"));
             }
 
             foreach (DateTime d in my_times_null)
             {
-              Console.WriteLine("null frame arrived at time " + d.ToString("O"));
+              Trace.WriteLine("null frame arrived at time " + d.ToString("O"));
             }
             GC.SuppressFinalize(this);
         }
