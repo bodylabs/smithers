@@ -222,8 +222,8 @@ namespace Smithers.Serialization
         private void ValidateBuffer(byte[] bytes, int width, int height, byte bytesPerPixel)
         {
             // the second part of the right side of the = is the stride
-            if (bytes.Length != height * (int)((width * bytesPerPixel * 8 + 7)/ 8))
-              throw new ArgumentException(string.Format("Buffer length doesn't match expected {0}x{1}x{2}x{3}", width, height, bytesPerPixel, (int)((width * bytesPerPixel * 8 + 7) / 8)));
+            if (bytes.Length != height * (int)(width * bytesPerPixel * 4 + 7)/ 32)
+              throw new ArgumentException(string.Format("Buffer length doesn't match expected {0}x{1}x{2}x{3}", width, height, bytesPerPixel, (width * bytesPerPixel * 8 + 7) / (bytesPerPixel*8)));
         }
 
         /// <summary>
