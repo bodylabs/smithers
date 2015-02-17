@@ -132,6 +132,9 @@ namespace Smithers.Sessions
             // NOTE: The memory manager and the SerializationThreadPool can´t be initialised here or it will use the default maxframecount of 50
             
             // _memoryManager = new MemoryManager(session.MaximumFrameCount);
+
+            my_times = new List<DateTime>();
+            my_times_after = new List<TimeSpan>();
         }
 
         /// <summary>
@@ -202,9 +205,17 @@ namespace Smithers.Sessions
             message = null;
             return true;
         }
-        
+
+
+        List<DateTime> my_times;
+        List<TimeSpan> my_times_after;
+
+
         public virtual void FrameArrived(LiveFrame frame)
         {
+
+            my_times.Add(DateTime.Now);
+
             bool bufferAvailable = true;
             // When the first frame arrive, start the calibration operation. This won't work
             // if we try to do it right after calling _sensor.Open().
@@ -232,11 +243,11 @@ namespace Smithers.Sessions
             // int nFramesToCapture = capturingShotReference.ShotDefinition.FramesToCapture;
             int nFramesToCapture = _capturingShot.ShotDefinition.FramesToCapture;
             MemoryManagedFrame frameToWriteTo = _memoryManager.GetWritableBuffer();
-            Console.WriteLine("{0} free frames to write to", _memoryManager.nWritableBuffers());
+            //Console.WriteLine("{0} free frames to write to", _memoryManager.nWritableBuffers());
             if (frameToWriteTo == null)
             {
                 bufferAvailable = false;
-                Console.WriteLine("There is no memory to write the frame data to. The capture ends now.");
+                //Console.WriteLine("There is no memory to write the frame data to. The capture ends now.");
             } 
             else
             {
@@ -255,26 +266,20 @@ namespace Smithers.Sessions
                 _memoryManager.EnqueuSerializationTask(frameToWriteTo);
             }
 
-            // Check if the user pressed the stop button or if the amount of frames to capture is reached
-            bool stopCapture = false;
-            if (nFramesToCapture == 0)
-            {
-                stopCapture = _stopButtonClicked;
-             
-                // We registered the stop button click, set it back to false
-                _stopButtonClicked = false;
-            }
-            else 
-            {
-                stopCapture = _frameCount >= nFramesToCapture;
-            }
+            my_times_after.Add(DateTime.Now - my_times.Last<DateTime>());
 
+            // Check if the user pressed the stop button or if the amount of frames to capture is reached
+            bool stopCapture = _stopButtonClicked || (_frameCount >= nFramesToCapture && nFramesToCapture != 0);
 
             if (!stopCapture && bufferAvailable)
             {
                 // Keep receiving frames
                 return;
             }
+
+            // We registered the stop button click, set it back to false
+            _stopButtonClicked = false;
+
 
             // (2) Move to the next shot
             // The Capture should be stopped, wait for serialization to end and prepare for new Shot to come in
@@ -341,6 +346,20 @@ namespace Smithers.Sessions
                 if (LastShotFinished != null)
                     LastShotFinished(this, ea2);
             }
+
+            foreach (DateTime d in my_times)
+            {
+              Console.WriteLine("frame arrived at time " + d.ToString("O"));
+            }
+
+            foreach (TimeSpan d in my_times_after)
+            {
+              Console.WriteLine("time span = " + d.Milliseconds);
+            }
+
+            my_times.Clear();
+            my_times_after.Clear();
+
         }
 
         public void StopCapture()
