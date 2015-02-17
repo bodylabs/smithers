@@ -122,8 +122,7 @@ namespace Smithers.Serialization
 
         private static BitmapSource BufferCaptureBitmapHelper(Array data, int width, int height, int bytesPerPixel, byte[] outBuffer)
         {
-            int stride = (width * bytesPerPixel * 8 + 7) / 8;
-            long bytes = stride * height;
+            long bytes = bytesPerPixel * width * height;
 
             if (outBuffer.Length < bytes)
                 throw new ArgumentException(string.Format("Buffer is too short, at least {0} needed", bytes));
@@ -141,17 +140,16 @@ namespace Smithers.Serialization
                 bytesPerPixel == 1 ? PixelFormats.Gray8 : PixelFormats.Gray16,
                 bytesPerPixel == 1 ? BitmapPalettes.Gray16 : BitmapPalettes.Gray16,
                 outBuffer,
-                stride);
+                width * bytesPerPixel
+            );
         }
 
         private static BitmapSource CreateColorBitmap(byte[] buffer, int width, int height)
         {
-            int stride = (width * COLOR_PIXEL_FORMAT_WPF.BitsPerPixel + 7) / 8;
-            long bytes = height * stride;//COLOR_BYTES_PER_PIXEL
+            long bytes = width * height * COLOR_BYTES_PER_PIXEL;
 
             if (buffer.Length != bytes)
                 throw new ArgumentException(string.Format("Buffer is incorrect length, expected {0}", bytes));
-
 
             return BitmapSource.Create(
                 width,
@@ -161,7 +159,8 @@ namespace Smithers.Serialization
                 COLOR_PIXEL_FORMAT_WPF,
                 null,
                 buffer,
-                stride);
+                width * COLOR_BYTES_PER_PIXEL
+            );
         }
 
         public Tuple<BitmapSource, TimeSpan> CaptureInfraredFrameBitmap(LiveFrame frame, byte[] buffer)
@@ -221,9 +220,8 @@ namespace Smithers.Serialization
 
         private void ValidateBuffer(byte[] bytes, int width, int height, byte bytesPerPixel)
         {
-            // the second part of the right side of the = is the stride
-            if (bytes.Length != height * (int)(width * bytesPerPixel * 4 + 7)/ 32)
-              throw new ArgumentException(string.Format("Buffer length doesn't match expected {0}x{1}x{2}x{3}", width, height, bytesPerPixel, (width * bytesPerPixel * 8 + 7) / (bytesPerPixel*8)));
+            if (bytes.Length != width * height * bytesPerPixel)
+                throw new ArgumentException(string.Format("Buffer length doesn't match expected {0}x{1}x{2}", width, height, bytesPerPixel));
         }
 
         /// <summary>

@@ -44,7 +44,7 @@ namespace Smithers.Serialization
         byte[] _bufferDepthMapping = new byte[Frame.DEPTH_INFRARED_PIXELS * FrameSerializer.DEPTH_MAPPING_BYTES_PER_PIXEL];
         byte[] _bufferDepth = new byte[Frame.DEPTH_INFRARED_PIXELS * FrameSerializer.DEPTH_INFRARED_BYTES_PER_PIXEL];
         byte[] _bufferInfrared = new byte[Frame.DEPTH_INFRARED_PIXELS * FrameSerializer.DEPTH_INFRARED_BYTES_PER_PIXEL];
-        byte[] _bufferColor = new byte[((Frame.COLOR_WIDTH * FrameSerializer.COLOR_BYTES_PER_PIXEL *8 + 7) / 8 )* Frame.COLOR_HEIGHT];
+        byte[] _bufferColor = new byte[Frame.COLOR_PIXELS * FrameSerializer.COLOR_BYTES_PER_PIXEL];
         byte[] _bufferBodyIndex = new byte[Frame.DEPTH_INFRARED_PIXELS * FrameSerializer.BODY_INDEX_BYTES_PER_PIXEL];
 
         // BLKD handle (underlying storage uses corresponding buffer above)
