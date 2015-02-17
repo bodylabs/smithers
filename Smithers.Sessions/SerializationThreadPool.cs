@@ -58,13 +58,13 @@ namespace Smithers.Sessions
         /// </summary>
         public void EndSerialization()
         {
+          lock (_lockObject)
+          {
             if (!_shouldStop)
             {
-                lock (_lockObject) 
-                {
-                    _shouldStop = true;
-                }
+              _shouldStop = true;
             }
+          }
         }
 
         /// <summary>
@@ -105,7 +105,7 @@ namespace Smithers.Sessions
                     {
                         System.Threading.Interlocked.Increment(ref waited);
                         waited++;
-                        Thread.Sleep(0);
+                        Thread.Yield();
                     }
                 }
                 else
