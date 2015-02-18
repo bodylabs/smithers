@@ -38,7 +38,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics;
-using System.Timers.Timer;
+using System.Timers;
 
 namespace Smithers.Sessions
 {
@@ -98,7 +98,7 @@ namespace Smithers.Sessions
 
         System.Timers.Timer _guiTimer;
         List<double> _frameTimeDeltas;
-        List<double> _frameTimes;
+        List<DateTime> _frameTimes;
 
         /// <summary>
         /// Fires when ready for a new shot.
@@ -160,9 +160,9 @@ namespace Smithers.Sessions
             my_times_after = new List<TimeSpan>();
 
             _frameTimeDeltas = new List<double>();
-            _frameTimes = new List<double>();
+            _frameTimes = new List<DateTime>();
 
-            _guiTimer = new System.Timers.Timer(2000);
+            _guiTimer = new System.Timers.Timer(3000);
             _guiTimer.Elapsed += new System.Timers.ElapsedEventHandler(onGuiUpdate);
         }
 
@@ -171,8 +171,10 @@ namespace Smithers.Sessions
             if (_frameTimeDeltas.Count > 0)
             {
                 int minFPS = Convert.ToInt32(1000.0 / _frameTimeDeltas.Max());
-                int averageFPS = Convert.ToInt32(_frameTimeDeltas.Average());
-                GUIUpdateEventArgs args = new GUIUpdateEventArgs(averageFPS, minFPS);
+                int averageFPS = Convert.ToInt32(1000.0 / _frameTimeDeltas.Average());
+
+                Console.WriteLine("Min: {0}, Average: {1}", minFPS, averageFPS);
+                GUIUpdateEventArgs args = new GUIUpdateEventArgs(minFPS, averageFPS);
 
                 if (updateGUI != null)
                     updateGUI(this, args);
@@ -259,9 +261,20 @@ namespace Smithers.Sessions
 
         public virtual void FrameArrived(LiveFrame frame)
         {
-
             my_times.Add(DateTime.Now);
-            _frameTimeDeltas
+
+            if (_frameTimes.Count > 0)
+            {
+                TimeSpan span = DateTime.Now - _frameTimes.Last<DateTime>();
+                double deltaInMS = span.TotalMilliseconds;
+
+                _frameTimeDeltas.Add(deltaInMS);
+                if (deltaInMS > 38.0)
+                {
+                    Console.WriteLine("Total Millisecond delta: {0}", deltaInMS);
+                }
+            }
+            _frameTimes.Add(DateTime.Now);
 
             bool bufferAvailable = true;
             // When the first frame arrive, start the calibration operation. This won't work
