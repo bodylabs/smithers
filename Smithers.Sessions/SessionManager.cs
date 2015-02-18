@@ -84,21 +84,23 @@ namespace Smithers.Sessions
         TShot _capturingShot;
         TShot _writingShot;
 
+        Task<CalibrationRecord> _calibration;
         MemoryManager<MemoryManagedFrame> _memoryManager;
         SerializationThreadPool _serializationThreadPool;
+        object _lockObject = new object();
+        
         int _frameCount = 0;
         bool _stopButtonClicked = false;
 
-        object _lockObject = new object();
-        Task<CalibrationRecord> _calibration;
-
         FrameReader _reader;
-
         FrameSerializer _serializer = new FrameSerializer();
 
         System.Timers.Timer _guiTimer;
-        List<double> _frameTimeDeltas;
         List<DateTime> _frameTimes;
+        List<double> _frameTimeDeltas;
+        private const int GUI_UPDATE_RATE_IN_MS = 3000;
+        private const int SERIALIZATION_THREAD_COUNT = 8;
+
 
         /// <summary>
         /// Fires when ready for a new shot.
@@ -159,10 +161,10 @@ namespace Smithers.Sessions
             my_times = new List<DateTime>();
             my_times_after = new List<TimeSpan>();
 
-            _frameTimeDeltas = new List<double>();
             _frameTimes = new List<DateTime>();
+            _frameTimeDeltas = new List<double>();
 
-            _guiTimer = new System.Timers.Timer(3000);
+            _guiTimer = new System.Timers.Timer(GUI_UPDATE_RATE_IN_MS);
             _guiTimer.Elapsed += new System.Timers.ElapsedEventHandler(onGuiUpdate);
         }
 
@@ -173,7 +175,6 @@ namespace Smithers.Sessions
                 int minFPS = Convert.ToInt32(1000.0 / _frameTimeDeltas.Max());
                 int averageFPS = Convert.ToInt32(1000.0 / _frameTimeDeltas.Average());
 
-                Console.WriteLine("Min: {0}, Average: {1}", minFPS, averageFPS);
                 GUIUpdateEventArgs args = new GUIUpdateEventArgs(minFPS, averageFPS);
 
                 if (updateGUI != null)
@@ -203,6 +204,7 @@ namespace Smithers.Sessions
         /// <returns></returns>
         public virtual void PrepareForNextShot(TShot shot = null)
         {
+            // Set the next shot to the passed one or find a non-completed
             if (shot != null) {
                 if (!_session.Shots.Contains(shot))
                     throw new ArgumentException("Shot does not belong to this session");
@@ -210,20 +212,21 @@ namespace Smithers.Sessions
                     throw new ArgumentException("Shot is already completed");
 
                 _nextShot = shot;
+
             }
             else
             {
                 _nextShot = _session.Shots.Find(x => !x.Completed);
+            }
 
-                if (_nextShot != null)
-                {
-                    Console.WriteLine("Preparing for next shot");
-
-                    // We need a new MemoryManager every time, because the user might want to change the amount of buffers
-                    _memoryManager = new MemoryManager<MemoryManagedFrame>(_nextShot.ShotDefinition.MemoryFrameCount);
-                    _serializationThreadPool = new SerializationThreadPool(8, _memoryManager, SaveOneFrameToDisk);
-                    _serializationThreadPool.StartSerialization();
-                }
+            // NOTE: We need a new MemoryManager and a new Threadpool every time a new Shot comes 
+            //       in, because the user might have changed the amount of buffers and because 
+            //       joined Threads cannot be reused
+            if (_nextShot != null)
+            {
+                _memoryManager = new MemoryManager<MemoryManagedFrame>(_nextShot.ShotDefinition.MemoryFrameCount);
+                _serializationThreadPool = new SerializationThreadPool(SERIALIZATION_THREAD_COUNT, _memoryManager, SaveOneFrameToDisk);
+                _serializationThreadPool.StartSerialization();
             }
 
             if (_nextShot != null && ReadyForShot != null)
