@@ -65,8 +65,6 @@
     <Compile Include="FrameData\Extensions\PointFExtensions.cs" />
     <Compile Include="FrameData\Extensions\Vector4Extensions.cs" />
     <Compile Include="FrameData\Frame.cs" />
-    <Compile Include="FrameData\Mock\MockKinectFrames.cs" />
-    <Compile Include="FrameData\Mock\MockLiveFrame.cs" />
     <Compile Include="FrameData\Skeleton.cs" />
     <Compile Include="FrameData\FrameReader.cs" />
     <Compile Include="FrameData\LiveFrame.cs" />

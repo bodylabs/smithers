@@ -36,7 +36,6 @@ using System.Linq;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
-using Smithers.Reading.FrameData.Mock;
 
 namespace Smithers.Serialization
 {
@@ -65,12 +64,8 @@ namespace Smithers.Serialization
         /// <param name="filename">filename to store the mapping</param>
         /// <returns></returns>
         public Tuple<Blkd, TimeSpan> CaptureMappedFrame(LiveFrame frame, byte[] buffer)
-        {
-            dynamic kinectFrame = frame._isKinectData ?
-                                  frame :
-                                  (MockLiveFrame)frame;
-            
-            var depthFrame = kinectFrame.NativeDepthFrame;
+        {   
+            DepthFrame depthFrame = frame.NativeDepthFrame;
             CoordinateMapper mapper = frame.NativeCoordinateMapper;
 
             if (buffer.Length != Frame.DEPTH_INFRARED_PIXELS * DEPTH_MAPPING_BYTES_PER_PIXEL)
@@ -165,11 +160,7 @@ namespace Smithers.Serialization
 
         public Tuple<BitmapSource, TimeSpan> CaptureInfraredFrameBitmap(LiveFrame frame, byte[] buffer)
         {
-            dynamic kinectFrame = frame._isKinectData ?
-                                  frame :
-                                  (MockLiveFrame)frame;
-            
-            var infraredFrame = kinectFrame.NativeInfraredFrame;
+            InfraredFrame infraredFrame = frame.NativeInfraredFrame;
 
             int width = infraredFrame.FrameDescription.Width;
             int height = infraredFrame.FrameDescription.Height;
@@ -182,11 +173,7 @@ namespace Smithers.Serialization
 
         public Tuple<BitmapSource, TimeSpan> CaptureDepthFrameBitmap(LiveFrame frame, byte[] buffer)
         {
-            dynamic kinectFrame = frame._isKinectData ?
-                                  frame :
-                                  (MockLiveFrame)frame;
-
-            var depthFrame = kinectFrame.NativeDepthFrame;
+            DepthFrame depthFrame = frame.NativeDepthFrame;
 
             int width = depthFrame.FrameDescription.Width;
             int height = depthFrame.FrameDescription.Height;
@@ -203,11 +190,7 @@ namespace Smithers.Serialization
 
         public Tuple<BitmapSource, TimeSpan> CaptureBodyIndexFrameBitmap(LiveFrame frame, byte[] buffer)
         {
-            dynamic kinectFrame = frame._isKinectData ?
-                                  frame :
-                                  (MockLiveFrame)frame;
-          
-            var bodyIndexFrame = kinectFrame.NativeBodyIndexFrame;
+            BodyIndexFrame bodyIndexFrame = frame.NativeBodyIndexFrame;
 
             int width = bodyIndexFrame.FrameDescription.Width;
             int height = bodyIndexFrame.FrameDescription.Height;
@@ -243,11 +226,7 @@ namespace Smithers.Serialization
         {
             ValidateBuffer(buffer, Frame.COLOR_WIDTH, Frame.COLOR_HEIGHT, COLOR_BYTES_PER_PIXEL);
 
-            dynamic kinectFrame = frame._isKinectData ?
-                      frame :
-                      (MockLiveFrame)frame;
-
-            var colorFrame = kinectFrame.NativeColorFrame;
+            ColorFrame colorFrame = frame.NativeColorFrame;
 
             colorFrame.CopyConvertedFrameDataToArray(buffer, ColorImageFormat.Bgra);
 
@@ -293,33 +272,25 @@ namespace Smithers.Serialization
 
         public Tuple<object, TimeSpan> SerializeSkeletonData(LiveFrame frame)
         {
-            dynamic kinectFrame = frame;
             List<object> serializedBodies = new List<object>();
-            Body firstBody = kinectFrame.FirstBody;
+            Body firstBody = frame.FirstBody;
             if (firstBody != null)
             {
                 serializedBodies.Add(SerializeBody(firstBody, true));
             }
-            foreach (Body body in kinectFrame.TrackedBodies)
+            foreach (Body body in frame.TrackedBodies)
             {
                 if (body == firstBody) continue;
                 serializedBodies.Add(SerializeBody(body));
             }
 
-            if (!frame._isKinectData)
-            {
-                kinectFrame = (MockLiveFrame)frame;
-            }
 
             object result = new
             {
-                FloorClipPlane = frame._isKinectData ? 
-                                 //kinectFrame.NativeBodyFrame.FloorClipPlane.ToArray() :
-                                 FrameSerializer.toArray(kinectFrame.NativeBodyFrame.FloorClipPlane) :
-                                 new float[]{0, 0, 0, 0},
+                FloorClipPlane = frame.NativeBodyFrame.FloorClipPlane.ToArray(),
                 Bodies = serializedBodies
             };
-            return new Tuple<object, TimeSpan>(result, kinectFrame.NativeBodyFrame.RelativeTime);
+            return new Tuple<object, TimeSpan>(result, frame.NativeBodyFrame.RelativeTime);
         }
 
         public static float[] toArray(Vector4 vec) {
