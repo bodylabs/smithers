@@ -38,6 +38,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics;
+using System.Timers.Timer;
 
 namespace Smithers.Sessions
 {
@@ -55,6 +56,18 @@ namespace Smithers.Sessions
             this.Shot = shot;
             this.ErrorMessage = errorMessage;
             this.Exception = exception;
+        }
+    }
+
+    public class GUIUpdateEventArgs : EventArgs
+    {
+        public int MinFPS { get; set; }
+        public int AverageFPS { get; set; }
+
+        public GUIUpdateEventArgs(int minFPS, int averageFPS)
+        {
+            this.MinFPS = minFPS;
+            this.AverageFPS = averageFPS;
         }
     }
 
@@ -82,6 +95,10 @@ namespace Smithers.Sessions
         FrameReader _reader;
 
         FrameSerializer _serializer = new FrameSerializer();
+
+        System.Timers.Timer _guiTimer;
+        List<double> _frameTimeDeltas;
+        List<double> _frameTimes;
 
         /// <summary>
         /// Fires when ready for a new shot.
@@ -126,6 +143,13 @@ namespace Smithers.Sessions
         /// </summary>
         public event EventHandler<SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>> LastShotFinished;
 
+        /// <summary>
+        /// Fires every 2 seconds to update the GUI´s Max- and AverageFPS counters
+        /// </summary>
+        public event EventHandler<GUIUpdateEventArgs> updateGUI;
+
+        
+
         public SessionManager(TSession session)
         {
             _session = session;
@@ -134,6 +158,28 @@ namespace Smithers.Sessions
 
             my_times = new List<DateTime>();
             my_times_after = new List<TimeSpan>();
+
+            _frameTimeDeltas = new List<double>();
+            _frameTimes = new List<double>();
+
+            _guiTimer = new System.Timers.Timer(2000);
+            _guiTimer.Elapsed += new System.Timers.ElapsedEventHandler(onGuiUpdate);
+        }
+
+        public void onGuiUpdate(Object source, System.Timers.ElapsedEventArgs e)
+        {
+            if (_frameTimeDeltas.Count > 0)
+            {
+                int minFPS = Convert.ToInt32(1000.0 / _frameTimeDeltas.Max());
+                int averageFPS = Convert.ToInt32(_frameTimeDeltas.Average());
+                GUIUpdateEventArgs args = new GUIUpdateEventArgs(averageFPS, minFPS);
+
+                if (updateGUI != null)
+                    updateGUI(this, args);
+
+                _frameTimeDeltas.Clear();
+                _frameTimes.Clear();
+            }
         }
 
         /// <summary>
@@ -194,8 +240,8 @@ namespace Smithers.Sessions
             }
 
             _capturingShot = _nextShot;
-            DateTime now = DateTime.Now;
-            _capturingShot.StartTime = DateTime.Now; 
+            _capturingShot.StartTime = DateTime.Now;
+            _guiTimer.Enabled = true;
             if (ShotBeginning != null)
                 ShotBeginning(this, new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot));
         }
@@ -215,6 +261,7 @@ namespace Smithers.Sessions
         {
 
             my_times.Add(DateTime.Now);
+            _frameTimeDeltas
 
             bool bufferAvailable = true;
             // When the first frame arrive, start the calibration operation. This won't work
@@ -338,7 +385,7 @@ namespace Smithers.Sessions
         private void FinishShot()
         {
             _writingShot.Completed = true;
-
+            _guiTimer.Enabled = false;
             // TODO: Is this metadatafile needed?
 
             /*
