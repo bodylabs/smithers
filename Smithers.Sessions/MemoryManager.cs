@@ -54,12 +54,6 @@ namespace Smithers.Sessions
             
         }
 
-        // TODO: Think about removing the notion of clearing a frame
-        public void ClearFrames()
-        {
-
-        }
-
         /// <summary>
         /// Frees the allocated resources
         /// </summary>

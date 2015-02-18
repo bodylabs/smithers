@@ -61,10 +61,10 @@ namespace Smithers.Sessions
 
     public class GUIUpdateEventArgs : EventArgs
     {
-        public int MinFPS { get; set; }
-        public int AverageFPS { get; set; }
+        public double MinFPS { get; set; }
+        public double AverageFPS { get; set; }
 
-        public GUIUpdateEventArgs(int minFPS, int averageFPS)
+        public GUIUpdateEventArgs(double minFPS, double averageFPS)
         {
             this.MinFPS = minFPS;
             this.AverageFPS = averageFPS;
@@ -85,9 +85,11 @@ namespace Smithers.Sessions
         TShot _writingShot;
 
         Task<CalibrationRecord> _calibration;
-        MemoryManager<MemoryManagedFrame> _memoryManager;
-        SerializationThreadPool _serializationThreadPool;
         object _lockObject = new object();
+        
+        MemoryManager<MemoryManagedFrame> _memoryManager;
+        SerializationThreadPool<MemoryManagedFrame> _serializationThreadPool;
+        private const int SERIALIZATION_THREAD_COUNT = 8;
         
         int _frameCount = 0;
         bool _stopButtonClicked = false;
@@ -95,11 +97,21 @@ namespace Smithers.Sessions
         FrameReader _reader;
         FrameSerializer _serializer = new FrameSerializer();
 
+        /// <summary>
+        /// Timer that fires the updateGUI event every GUI_UPDATE_RATE_IN_MS 
+        /// </summary>
         System.Timers.Timer _guiTimer;
-        List<DateTime> _frameTimes;
-        List<double> _frameTimeDeltas;
         private const int GUI_UPDATE_RATE_IN_MS = 3000;
-        private const int SERIALIZATION_THREAD_COUNT = 8;
+
+        /// <summary>
+        /// List of Timestamps recording when the Frames came in from the kinect
+        /// </summary>
+        List<DateTime> _frameTimes;
+        /// <summary>
+        /// List of Timestamp deltas in milliseconds
+        /// </summary>
+        List<double> _frameTimeDeltas;
+
 
 
         /// <summary>
@@ -146,7 +158,7 @@ namespace Smithers.Sessions
         public event EventHandler<SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>> LastShotFinished;
 
         /// <summary>
-        /// Fires every 2 seconds to update the GUI´s Max- and AverageFPS counters
+        /// Is fired every GUI_UPDATE_RATE_IN_MS to update the GUI´s Min- and AverageFPS labels
         /// </summary>
         public event EventHandler<GUIUpdateEventArgs> updateGUI;
 
@@ -168,12 +180,15 @@ namespace Smithers.Sessions
             _guiTimer.Elapsed += new System.Timers.ElapsedEventHandler(onGuiUpdate);
         }
 
-        public void onGuiUpdate(Object source, System.Timers.ElapsedEventArgs e)
+        /// <summary>
+        /// Timer callback that computes the min and average FPS in the past GUI_UPDATE_RATE_IN_MS - window.
+        /// </summary>
+        private void onGuiUpdate(Object source, System.Timers.ElapsedEventArgs e)
         {
             if (_frameTimeDeltas.Count > 0)
             {
-                int minFPS = Convert.ToInt32(1000.0 / _frameTimeDeltas.Max());
-                int averageFPS = Convert.ToInt32(1000.0 / _frameTimeDeltas.Average());
+                double minFPS = (1000.0 / _frameTimeDeltas.Max());
+                double averageFPS = (1000.0 / _frameTimeDeltas.Average());
 
                 GUIUpdateEventArgs args = new GUIUpdateEventArgs(minFPS, averageFPS);
 
@@ -201,10 +216,8 @@ namespace Smithers.Sessions
         /// Move to the next shot which needs to be completed. When a specific
         /// shot is provided, that logic is used instead.
         /// </summary>
-        /// <returns></returns>
         public virtual void PrepareForNextShot(TShot shot = null)
         {
-            // Set the next shot to the passed one or find a non-completed
             if (shot != null) {
                 if (!_session.Shots.Contains(shot))
                     throw new ArgumentException("Shot does not belong to this session");
@@ -224,8 +237,10 @@ namespace Smithers.Sessions
             //       joined Threads cannot be reused
             if (_nextShot != null)
             {
-                _memoryManager = new MemoryManager<MemoryManagedFrame>(_nextShot.ShotDefinition.MemoryFrameCount);
-                _serializationThreadPool = new SerializationThreadPool(SERIALIZATION_THREAD_COUNT, _memoryManager, SaveOneFrameToDisk);
+                _memoryManager = 
+                    new MemoryManager<MemoryManagedFrame>(_nextShot.ShotDefinition.MemoryFrameCount);
+                _serializationThreadPool = 
+                    new SerializationThreadPool<MemoryManagedFrame>(SERIALIZATION_THREAD_COUNT, _memoryManager, SaveOneFrameToDisk);
                 _serializationThreadPool.StartSerialization();
             }
 
@@ -258,26 +273,23 @@ namespace Smithers.Sessions
         }
 
 
+        // TODO: Remove these once all timing stuff is done
         List<DateTime> my_times;
         List<TimeSpan> my_times_after;
 
 
         public virtual void FrameArrived(LiveFrame frame)
         {
-            my_times.Add(DateTime.Now);
+            DateTime now = DateTime.Now;
+            my_times.Add(now);
 
             if (_frameTimes.Count > 0)
             {
-                TimeSpan span = DateTime.Now - _frameTimes.Last<DateTime>();
+                TimeSpan span = now - _frameTimes.Last<DateTime>();
                 double deltaInMS = span.TotalMilliseconds;
-
                 _frameTimeDeltas.Add(deltaInMS);
-                if (deltaInMS > 38.0)
-                {
-                    Console.WriteLine("Total Millisecond delta: {0}", deltaInMS);
-                }
             }
-            _frameTimes.Add(DateTime.Now);
+            _frameTimes.Add(now);
 
             bool bufferAvailable = true;
             // When the first frame arrive, start the calibration operation. This won't work
@@ -290,14 +302,13 @@ namespace Smithers.Sessions
             if (_capturingShot == null)
             {
                 // We don´t currently capture, so we can return immediately
-
                 // Console.WriteLine("_capturingShot == null");
-                
                 return;
             }
 
             // (1) Serialize frame data
 
+            Trace.WriteLine("Available Buffers: " +_memoryManager.nWritableBuffers());
             int nFramesToCapture = _capturingShot.ShotDefinition.FramesToCapture;
             MemoryManagedFrame frameToWriteTo = _memoryManager.GetWritableBuffer();
 
@@ -308,7 +319,7 @@ namespace Smithers.Sessions
             } 
             else
             {
-                // We successfully received a buffer, now we can fill in the frame data to the buffer
+                // We successfully received a buffer, now we can fill the frame data into the buffer
                 bufferAvailable = true;
                 frameToWriteTo.Frame.Clear();
 
@@ -358,7 +369,7 @@ namespace Smithers.Sessions
 
             if (!stopCapture && bufferAvailable)
             {
-                // Keep receiving frames
+                // Continue the capture
                 return;
             }
 
@@ -367,14 +378,12 @@ namespace Smithers.Sessions
 
 
             // (2) Move to the next shot
-            // The Capture should be stopped, wait for serialization to end and prepare for new Shot to come in
-
+            // The Capture should be stopped, signal serialization end and prepare for new Shot to come in
             _serializationThreadPool.EndSerialization();
 
             string message;
             if (!ValidateShot(out message))
             {
-                _memoryManager.ClearFrames();
                 _frameCount = 0;
                 var ea2 = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot, message);
 
@@ -390,6 +399,7 @@ namespace Smithers.Sessions
 
             _capturingShot = null;
 
+            // Blocks until everything is written to disk
             _serializationThreadPool.WaitForSerializationEnd();
 
             if (ShotCompletedSuccess != null)
@@ -429,6 +439,9 @@ namespace Smithers.Sessions
                     LastShotFinished(this, ea2);
             }
 
+
+            // TODO: Remove this when all the timing stuff has been sorted out
+            /*
             foreach (DateTime d in my_times)
             {
               Trace.WriteLine("frame arrived at time " + d.ToString("O"));
@@ -438,6 +451,7 @@ namespace Smithers.Sessions
             {
               Trace.WriteLine("time span = " + d.Milliseconds);
             }
+            */
 
             my_times.Clear();
             my_times_after.Clear();
@@ -477,7 +491,7 @@ namespace Smithers.Sessions
             return writers;
         }
 
-        protected virtual string GeneratePath(TShot shot, MemoryFrame frame, TimeSpan deltaTime, int frameIndex, IWriter writer)
+        protected virtual string GeneratePath(TShot shot, MemoryFrame frame, double deltaTimeInMS, int frameIndex, IWriter writer)
         {
             string folderName = writer.Type.Name;
 
@@ -485,15 +499,12 @@ namespace Smithers.Sessions
 
             // 0 -> Frame_001, 1 -> Frame_002, etc.
             string frameName = string.Format("Frame_{0:D3}", frameIndex + 1);
-
-            double ms = deltaTime.TotalMilliseconds;
-
             string fileName = string.Format(
-                "{0}{1}{2}_Time_{3:N0}{4}",
+                "{0}{1}{2}_Time_{3:#}{4}",
                 shotName,
                 shotName == null ? "" : "_",
                 frameName,
-                ms,
+                deltaTimeInMS,
                 writer.FileExtension
             );
 
@@ -550,6 +561,7 @@ namespace Smithers.Sessions
             MemoryFrame memoryFrame = frame.Frame;
             int index = frame.Index;
             TimeSpan deltaTime = frame.ArrivedTime - shot.StartTime;
+            double deltaTimeInMS = deltaTime.TotalMilliseconds;
 
             if (index == 0)
             {
@@ -574,7 +586,7 @@ namespace Smithers.Sessions
                     {
                         Type = writer.Type,
                         Timestamp = writer.Timestamp,
-                        Path = GeneratePath(shot, memoryFrame, deltaTime, index, writer),
+                        Path = GeneratePath(shot, memoryFrame, deltaTimeInMS, index, writer),
                     }
                 ));
             }

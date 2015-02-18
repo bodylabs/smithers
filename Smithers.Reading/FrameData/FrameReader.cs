@@ -72,6 +72,7 @@ namespace Smithers.Reading.FrameData
 
         #endregion
 
+        // TODO: Remove once all timing has been done
         List<DateTime> my_times, my_times_null;
 
         public FrameReader()
@@ -125,6 +126,8 @@ namespace Smithers.Reading.FrameData
                 _sensor = null;
             }
 
+
+            /*
             foreach(DateTime d in my_times)
             {
               Trace.WriteLine("frame arrived at time " + d.ToString("O"));
@@ -134,6 +137,7 @@ namespace Smithers.Reading.FrameData
             {
               Trace.WriteLine("null frame arrived at time " + d.ToString("O"));
             }
+             * */
             GC.SuppressFinalize(this);
         }
 

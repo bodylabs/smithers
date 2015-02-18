@@ -9,24 +9,39 @@ using System.Threading.Tasks;
 namespace Smithers.Sessions
 {
     /// <summary>
-    /// This class handles a fixed amount of Threads that take care of serializing
+    /// This class manages a fixed amount of threads that all query a MemoryManager for serializable buffers.
     /// </summary>
-    public class SerializationThreadPool
+    /// <typeparam name="TMemoryManagedFrame">The type of frame that is stored to disk</typeparam>
+    public class SerializationThreadPool<TMemoryManagedFrame>
+        where TMemoryManagedFrame : new()
     {
-        public delegate void SerializeFrameToDiskDelegate(MemoryManagedFrame frame);
+        /// <summary>
+        /// The serialization callback definition
+        /// </summary>
+        public delegate void SerializeFrameToDiskDelegate(TMemoryManagedFrame frame);
 
         private object _lockObject;
         private bool _shouldStop;
-        private MemoryManager<MemoryManagedFrame> _memoryManager;
+        private MemoryManager<TMemoryManagedFrame> _memoryManager;
         private int _nThreads;
         private Thread[] _threads;
+
+        // Serialization callback
         private SerializeFrameToDiskDelegate _serializeOneFrameToDisk;
 
         private int waited;
         private int serialized;
 
+        /// <summary>
+        /// Constructs a new SerializationThreadPool with the given arguments
+        /// </summary>
+        /// <param name="nThreads">The number of threads that will query the MemoryManager</param>
+        /// <param name="memoryManager">The MemoryManager the threads will query for serializable frames</param>
+        /// <param name="serializeOneFrameToDisk">
+        ///     The serialization callback that is invoked on the serializable frames
+        /// </param>
         public SerializationThreadPool(int nThreads, 
-                                       MemoryManager<MemoryManagedFrame> memoryManager,
+                                       MemoryManager<TMemoryManagedFrame> memoryManager,
                                        SerializeFrameToDiskDelegate serializeOneFrameToDisk) 
         {
             _lockObject = new object();
@@ -45,6 +60,9 @@ namespace Smithers.Sessions
             serialized = 0;
         }
 
+        /// <summary>
+        /// Starts all the threads
+        /// </summary>
         public void StartSerialization()
         {
             foreach (Thread thread in _threads)
@@ -54,7 +72,9 @@ namespace Smithers.Sessions
         }
 
         /// <summary>
-        /// Signals to the Threads, that no more Frames will arrive.
+        /// Signals to the threads, that no more frames will arrive.
+        /// The threads continue serializing until the MemoryManager 
+        /// does not deliver new frames to serialize.
         /// </summary>
         public void EndSerialization()
         {
@@ -77,6 +97,7 @@ namespace Smithers.Sessions
                 thread.Join();
             }
             _shouldStop = false;
+
             Console.WriteLine("Serialized: {0}", serialized);
             Console.WriteLine("Waited: {0}", waited);
             Console.WriteLine("Serialized/Waited: {0}", (double)serialized / (double)waited);
@@ -93,7 +114,7 @@ namespace Smithers.Sessions
         {
             while(true)
             {
-                MemoryManagedFrame frameToSerialize = _memoryManager.GetSerializableFrame();
+                TMemoryManagedFrame frameToSerialize = _memoryManager.GetSerializableFrame();
 
                 if (frameToSerialize == null)
                 {
@@ -104,7 +125,6 @@ namespace Smithers.Sessions
                     else
                     {
                         System.Threading.Interlocked.Increment(ref waited);
-                        waited++;
                         Thread.Yield();
                     }
                 }
@@ -113,12 +133,6 @@ namespace Smithers.Sessions
                     _serializeOneFrameToDisk(frameToSerialize);
                     System.Threading.Interlocked.Increment(ref serialized);
                     _memoryManager.SetFrameAsWritable(frameToSerialize);
-
-                    /*
-                    IAsyncResult result =_serializeOneFrameToDisk.BeginInvoke(frameToSerialize, null, null);
-                    _serializeOneFrameToDisk.EndInvoke(result);
-                    _memoryManager.SetFrameAsWritable(frameToSerialize);
-                    */
                 }
             }
         }
