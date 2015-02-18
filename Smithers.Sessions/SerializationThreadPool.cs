@@ -54,7 +54,7 @@ namespace Smithers.Sessions
         }
 
         /// <summary>
-        /// Signals to the Threads, that no more Thread will arrive.
+        /// Signals to the Threads, that no more Frames will arrive.
         /// </summary>
         public void EndSerialization()
         {

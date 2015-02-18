@@ -177,6 +177,8 @@ namespace Smithers.Sessions
         where TShotDefinition : ShotDefinition
         where TSavedItem : SavedItem
     {
+        public DateTime StartTime { get; set; }
+
         public Shot() {
             this.SavedItems = new List<TSavedItem>();
         }

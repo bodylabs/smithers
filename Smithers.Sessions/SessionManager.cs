@@ -131,8 +131,6 @@ namespace Smithers.Sessions
             _session = session;
 
             // NOTE: The memory manager and the SerializationThreadPool can´t be initialised here or it will use the default maxframecount of 50
-            
-            // _memoryManager = new MemoryManager(session.MaximumFrameCount);
 
             my_times = new List<DateTime>();
             my_times_after = new List<TimeSpan>();
@@ -175,7 +173,7 @@ namespace Smithers.Sessions
 
                     // We need a new MemoryManager every time, because the user might want to change the amount of buffers
                     _memoryManager = new MemoryManager<MemoryManagedFrame>(_nextShot.ShotDefinition.MemoryFrameCount);
-                    _serializationThreadPool = new SerializationThreadPool(4, _memoryManager, SaveOneFrameToDisk);
+                    _serializationThreadPool = new SerializationThreadPool(8, _memoryManager, SaveOneFrameToDisk);
                     _serializationThreadPool.StartSerialization();
                 }
             }
@@ -196,7 +194,8 @@ namespace Smithers.Sessions
             }
 
             _capturingShot = _nextShot;
-
+            DateTime now = DateTime.Now;
+            _capturingShot.StartTime = DateTime.Now; 
             if (ShotBeginning != null)
                 ShotBeginning(this, new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot));
         }
@@ -236,19 +235,13 @@ namespace Smithers.Sessions
 
             // (1) Serialize frame data
 
-            // Grab a reference to the current caturing shot because this can apparently
-            // be accessed from a different thread or something
-            // TODO: Check with the real thread pool later
-
-            // TShot capturingShotReference = _capturingShot;
-            // int nFramesToCapture = capturingShotReference.ShotDefinition.FramesToCapture;
             int nFramesToCapture = _capturingShot.ShotDefinition.FramesToCapture;
             MemoryManagedFrame frameToWriteTo = _memoryManager.GetWritableBuffer();
-            //Console.WriteLine("{0} free frames to write to", _memoryManager.nWritableBuffers());
+
             if (frameToWriteTo == null)
             {
                 bufferAvailable = false;
-                //Console.WriteLine("There is no memory to write the frame data to. The capture ends now.");
+                Console.WriteLine("There is no memory to write the frame data to. The capture ends now.");
             } 
             else
             {
@@ -287,10 +280,10 @@ namespace Smithers.Sessions
                 lock (_lockObject)
                 {
                     frameToWriteTo.Index = _frameCount++;
+                    frameToWriteTo.ArrivedTime = DateTime.Now;
                 }
 
                 // The framedata was stored into the buffer, now we can save it to disk
-                // _writingShot = capturingShotReference;
                 _writingShot = _capturingShot;
                 _memoryManager.EnqueuSerializationTask(frameToWriteTo);
             }
@@ -354,9 +347,6 @@ namespace Smithers.Sessions
             await Task.Run(() => JSONHelper.Instance.Serialize(_session.GetMetadata(), metadataPath));
             */
 
-            // Clear the frames to make sure we don't use them again
-            
-            // _memoryManager.ClearFrames();
             _frameCount = 0;
 
             var ea2 = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_writingShot);
@@ -424,7 +414,7 @@ namespace Smithers.Sessions
             return writers;
         }
 
-        protected virtual string GeneratePath(TShot shot, MemoryFrame frame, int frameIndex, IWriter writer)
+        protected virtual string GeneratePath(TShot shot, MemoryFrame frame, TimeSpan deltaTime, int frameIndex, IWriter writer)
         {
             string folderName = writer.Type.Name;
 
@@ -432,18 +422,15 @@ namespace Smithers.Sessions
 
             // 0 -> Frame_001, 1 -> Frame_002, etc.
             string frameName = string.Format("Frame_{0:D3}", frameIndex + 1);
-            TimeSpan? timespan = writer.Timestamp;
-            bool timespanHasValue = timespan.HasValue;
-            string timeStamp = timespanHasValue ? 
-                               timespan.Value.TotalMilliseconds.ToString() :
-                               "";
+
+            double ms = deltaTime.TotalMilliseconds;
+
             string fileName = string.Format(
-                "{0}{1}{2}{3}{4}{5}",
+                "{0}{1}{2}_Time_{3:N0}{4}",
                 shotName,
                 shotName == null ? "" : "_",
                 frameName,
-                timespanHasValue ? "_Time_" : "",
-                timeStamp,
+                ms,
                 writer.FileExtension
             );
 
@@ -499,6 +486,7 @@ namespace Smithers.Sessions
             var preparedWriters = new List<Tuple<IWriter, TSavedItem>>();
             MemoryFrame memoryFrame = frame.Frame;
             int index = frame.Index;
+            TimeSpan deltaTime = frame.ArrivedTime - shot.StartTime;
 
             if (index == 0)
             {
@@ -523,7 +511,7 @@ namespace Smithers.Sessions
                     {
                         Type = writer.Type,
                         Timestamp = writer.Timestamp,
-                        Path = GeneratePath(shot, memoryFrame, index, writer),
+                        Path = GeneratePath(shot, memoryFrame, deltaTime, index, writer),
                     }
                 ));
             }

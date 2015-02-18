@@ -12,6 +12,7 @@ namespace Smithers.Sessions
     {
         int _index;
         MemoryFrame _frame;
+        DateTime _arrivedTime;
 
         public int Index 
         { 
@@ -29,6 +30,13 @@ namespace Smithers.Sessions
             _index = -1;
             _frame = new MemoryFrame();
         }
+
+        public DateTime ArrivedTime 
+        {
+            get { return _arrivedTime; }
+            set { _arrivedTime = value; }
+        }
+
 
     }
 }
