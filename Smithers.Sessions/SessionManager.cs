@@ -63,11 +63,13 @@ namespace Smithers.Sessions
     {
         public double MinFPS { get; set; }
         public double AverageFPS { get; set; }
+        public double MaxTimeDeleta { get; set; }
 
-        public GUIUpdateEventArgs(double minFPS, double averageFPS)
+        public GUIUpdateEventArgs(double minFPS, double maxTimeDelta, double averageFPS)
         {
             this.MinFPS = minFPS;
             this.AverageFPS = averageFPS;
+            this.MaxTimeDeleta = maxTimeDelta;
         }
     }
 
@@ -187,10 +189,11 @@ namespace Smithers.Sessions
         {
             if (_frameTimeDeltas.Count > 0)
             {
-                double minFPS = (1000.0 / _frameTimeDeltas.Max());
+                double maxTimeDelta = _frameTimeDeltas.Max();
+                double minFPS = (1000.0 / maxTimeDelta);
                 double averageFPS = (1000.0 / _frameTimeDeltas.Average());
 
-                GUIUpdateEventArgs args = new GUIUpdateEventArgs(minFPS, averageFPS);
+                GUIUpdateEventArgs args = new GUIUpdateEventArgs(minFPS, maxTimeDelta, averageFPS);
 
                 if (updateGUI != null)
                     updateGUI(this, args);
