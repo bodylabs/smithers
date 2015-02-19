@@ -36,6 +36,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
+
 namespace Smithers.Visualization
 {
     public enum CameraMode
@@ -100,43 +101,47 @@ namespace Smithers.Visualization
 
         public void FrameArrived(LiveFrame frame)
         {
-            if (!this.SparseUpdate || (++this.frameCount == FRAME_UPDATE_COUNT))
+            if (!this.SparseUpdate)
             {
-                FrameBitmap primary = null;
-                FrameBitmap secondary = null;
-                double primaryOpacity = 1.0;
-                double secondaryOpacity = 1.0;
-
-                switch (this.CameraMode)
+                if (!this.SparseUpdate || (++this.frameCount == FRAME_UPDATE_COUNT))
                 {
-                    case CameraMode.Color:
-                        _bitmapBuilder.BuildColorBitmap(frame.NativeColorFrame, _bitmapLarge1, true);
-                        primary = _bitmapLarge1;
-                        break;
-                    case CameraMode.Depth:
-                        _bitmapBuilder.BuildDepthBitmap(frame.NativeDepthFrame, _bitmapSmall1, true);
-                        primary = _bitmapSmall1;
-                        break;
-                    case CameraMode.Infrared:
-                        _bitmapBuilder.BuildInfraredBitmap(frame.NativeInfraredFrame, _bitmapSmall1, true);
-                        primary = _bitmapSmall1;
-                        break;
-                    case CameraMode.ColorDepth:
-                        throw new NotImplementedException("Camera mode not implemented");
-                    case CameraMode.InfraredDepth:
-                        throw new NotImplementedException("Camera mode not implemented");
-                    default:
-                        throw new ArgumentException("Unrecognized camera mode");
-                }
+                    FrameBitmap primary = null;
+                    FrameBitmap secondary = null;
+                    double primaryOpacity = 1.0;
+                    double secondaryOpacity = 1.0;
 
-                this.EnsureImageSources(primary, primaryOpacity, secondary, secondaryOpacity);
+                    switch (this.CameraMode)
+                    {
+                        case CameraMode.Color:
+                            _bitmapBuilder.BuildColorBitmap(frame.NativeColorFrame, _bitmapLarge1, true);
+                            primary = _bitmapLarge1;
+                            break;
+                        case CameraMode.Depth:
+                            _bitmapBuilder.BuildDepthBitmap(frame.NativeDepthFrame, _bitmapSmall1, true);
+                            primary = _bitmapSmall1;
+                            break;
+                        case CameraMode.Infrared:
+                            _bitmapBuilder.BuildInfraredBitmap(frame.NativeInfraredFrame, _bitmapSmall1, true);
+                            primary = _bitmapSmall1;
+                            break;
+                        case CameraMode.ColorDepth:
+                            throw new NotImplementedException("Camera mode not implemented");
+                        case CameraMode.InfraredDepth:
+                            throw new NotImplementedException("Camera mode not implemented");
+                        default:
+                            throw new ArgumentException("Unrecognized camera mode");
+                    }
 
-                // Set back to zero, so there can never be overflow
-                if (this.SparseUpdate)
-                {
-                    frameCount -= FRAME_UPDATE_COUNT;
+                    this.EnsureImageSources(primary, primaryOpacity, secondary, secondaryOpacity);
+
+                    // Set back to zero, so there can never be overflow
+                    if (this.SparseUpdate)
+                    {
+                        frameCount -= FRAME_UPDATE_COUNT;
+                    }
                 }
             }
+
         }
     }
 }

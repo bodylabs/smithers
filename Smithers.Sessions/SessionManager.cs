@@ -174,6 +174,7 @@ namespace Smithers.Sessions
 
             my_times = new List<DateTime>();
             my_times_after = new List<TimeSpan>();
+            _timestampCollection = new List<double[]>();
 
             _frameTimes = new List<DateTime>();
             _frameTimeDeltas = new List<double>();
@@ -282,7 +283,7 @@ namespace Smithers.Sessions
         // TODO: Remove these once all timing stuff is done
         List<DateTime> my_times;
         List<TimeSpan> my_times_after;
-
+        List<double[]> _timestampCollection;
 
         public virtual void FrameArrived(LiveFrame frame)
         {
@@ -333,45 +334,59 @@ namespace Smithers.Sessions
                 bufferAvailable = true;
                 frameToWriteTo.Frame.Clear();
 
+                DateTime start = DateTime.Now;
+                double[] timestamps = new double[6];
                 if (_capturingShot.ShotDefinition.SerializationFlags.SerializeColor)
                 {
                   frameToWriteTo.Frame.UpdateColor(frame, _serializer);
                 }
+                timestamps[0] = (DateTime.Now - start).Milliseconds;
 
+                start = DateTime.Now;
                 if (_capturingShot.ShotDefinition.SerializationFlags.SerializeDepth)
                 {
                   frameToWriteTo.Frame.UpdateDepth(frame, _serializer);
                 }
+                timestamps[1] = (DateTime.Now - start).Milliseconds;
 
+                start = DateTime.Now;
                 if (_capturingShot.ShotDefinition.SerializationFlags.SerializeDepthMapping)
                 {
                   frameToWriteTo.Frame.UpdateDepthMapping(frame, _serializer);
                 }
+                timestamps[2] = (DateTime.Now - start).Milliseconds;
 
+                start = DateTime.Now;
                 if (_capturingShot.ShotDefinition.SerializationFlags.SerializeInfrared)
                 {
                   frameToWriteTo.Frame.UpdateInfrared(frame, _serializer);
                 }
+                timestamps[3] = (DateTime.Now - start).Milliseconds;
 
+                start = DateTime.Now;
                 if (_capturingShot.ShotDefinition.SerializationFlags.SerializeSkeleton)
                 {
                   frameToWriteTo.Frame.UpdateSkeleton(frame, _serializer);
                 }
+                timestamps[4] = (DateTime.Now - start).Milliseconds;
 
+                start = DateTime.Now;
                 frameToWriteTo.Frame.UpdateBodyIndex(frame, _serializer);
-                          
+                timestamps[5] = (DateTime.Now - start).Milliseconds;          
 
                 lock (_lockObject)
                 {
                     frameToWriteTo.Index = _frameCount++;
                     frameToWriteTo.ArrivedTime = DateTime.Now;
                 }
+                
+                _timestampCollection.Add(timestamps);
+
 
                 // The framedata was stored into the buffer, now we can save it to disk
                 _writingShot = _capturingShot;
                 _memoryManager.EnqueuSerializationTask(frameToWriteTo);
             }
-
             my_times_after.Add(DateTime.Now - my_times.Last<DateTime>());
 /*
             Trace.WriteLine("Took " + my_times_after.Last().Milliseconds +"ms to write the frame data to the buffers");
@@ -471,12 +486,19 @@ namespace Smithers.Sessions
             {
               Trace.WriteLine("frame arrived at time " + d.ToString("O"));
             }
+            */
 
             foreach (TimeSpan d in my_times_after)
             {
               Trace.WriteLine("time span = " + d.Milliseconds);
             }
-            */
+
+            foreach (double[] timestamps in _timestampCollection)
+            {
+                Trace.WriteLine("Color: " + timestamps[0] + "ms, Depth: " + timestamps[1] +
+                                "ms, DepthMapping: " + timestamps[2] + "ms,  Infrared: " + timestamps[3] +
+                                "ms, Skeleton: " + timestamps[4] + "ms, BodyIndex: " + timestamps[5]);
+            }
 
             my_times.Clear();
             my_times_after.Clear();
