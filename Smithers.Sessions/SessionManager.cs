@@ -201,6 +201,7 @@ namespace Smithers.Sessions
 
                 _frameTimeDeltas.Clear();
                 _frameTimes.Clear();
+
             }
         }
 
@@ -497,7 +498,7 @@ namespace Smithers.Sessions
             {
                 Trace.WriteLine("Color: " + timestamps[0] + "ms, Depth: " + timestamps[1] +
                                 "ms, DepthMapping: " + timestamps[2] + "ms,  Infrared: " + timestamps[3] +
-                                "ms, Skeleton: " + timestamps[4] + "ms, BodyIndex: " + timestamps[5]);
+                                "ms, Skeleton: " + timestamps[4] + "ms, BodyIndex: " + timestamps[5] + "ms");
             }
 
             my_times.Clear();
@@ -597,9 +598,9 @@ namespace Smithers.Sessions
                     writer.Write(stream);
                     stream.Close();
                 }
-
                 _writingShot.SavedItems.Add(savedItem);
             }
+            memoryBlockToSerialize.Frame.Clear();
         }
 
         protected virtual IEnumerable<Tuple<IWriter, TSavedItem>> PrepareWritersForOneFrame(TShot shot, MemoryManagedFrame frame)

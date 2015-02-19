@@ -54,6 +54,7 @@ namespace Smithers.Sessions
             for (int i = 0; i < _nThreads; ++i)
             {
                 _threads[i] = new Thread(SerializationLoop);
+                _threads[i].Priority = ThreadPriority.BelowNormal;
             }
 
             waited = 0;

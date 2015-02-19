@@ -139,7 +139,7 @@ namespace Smithers.Serialization
             );
         }
 
-        private static BitmapSource CreateColorBitmap(byte[] buffer, int width, int height)
+        public static BitmapSource CreateColorBitmap(byte[] buffer, int width, int height)
         {
             long bytes = width * height * COLOR_BYTES_PER_PIXEL;
 
@@ -230,8 +230,8 @@ namespace Smithers.Serialization
 
             colorFrame.CopyConvertedFrameDataToArray(buffer, ColorImageFormat.Bgra);
 
-            BitmapSource result = CreateColorBitmap(buffer, Frame.COLOR_WIDTH, Frame.COLOR_HEIGHT);
-            return new Tuple<BitmapSource, TimeSpan>(result, colorFrame.RelativeTime);
+            //BitmapSource result = CreateColorBitmap(buffer, Frame.COLOR_WIDTH, Frame.COLOR_HEIGHT);
+            return new Tuple<BitmapSource, TimeSpan>(null, colorFrame.RelativeTime); // new Tuple<BitmapSource, TimeSpan>(result, colorFrame.RelativeTime);
         }
 
         private static object SerializeJoint(Body skeleton, JointType joint)
