@@ -62,7 +62,7 @@ namespace Smithers.Visualization
         public bool SparseUpdate { get; set; }
 
         private int frameCount;
-        private const int FRAME_UPDATE_COUNT = 30;
+        private const int FRAME_UPDATE_COUNT = 60;
 
         public CameraImagePresenter(Image cameraPrimary, Image cameraSecondary)
         {
@@ -100,7 +100,7 @@ namespace Smithers.Visualization
 
         public void FrameArrived(LiveFrame frame)
         {
-            if (!this.SparseUpdate || (++this.frameCount % FRAME_UPDATE_COUNT == 0))
+            if (!this.SparseUpdate || (++this.frameCount == FRAME_UPDATE_COUNT))
             {
                 FrameBitmap primary = null;
                 FrameBitmap secondary = null;
@@ -130,6 +130,12 @@ namespace Smithers.Visualization
                 }
 
                 this.EnsureImageSources(primary, primaryOpacity, secondary, secondaryOpacity);
+
+                // Set back to zero, so there can never be overflow
+                if (this.SparseUpdate)
+                {
+                    frameCount -= FRAME_UPDATE_COUNT;
+                }
             }
         }
     }

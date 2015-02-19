@@ -259,11 +259,14 @@ namespace Smithers.Sessions
                 throw new InvalidOperationException("Capture is already finished");
             }
 
+            if (ShotBeginning != null)
+                ShotBeginning(this, new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot));
+
+
+            Thread.Sleep(300);
             _capturingShot = _nextShot;
             _capturingShot.StartTime = DateTime.Now;
             _guiTimer.Enabled = true;
-            if (ShotBeginning != null)
-                ShotBeginning(this, new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot));
         }
 
         public virtual bool ValidateShot(out string message)
@@ -308,7 +311,11 @@ namespace Smithers.Sessions
 
             // (1) Serialize frame data
 
+            /*
             Trace.WriteLine("Available Buffers: " +_memoryManager.nWritableBuffers());
+            Trace.WriteLine("Serializable Buffers: " + _memoryManager.nSerializableBuffers());
+            */
+
             int nFramesToCapture = _capturingShot.ShotDefinition.FramesToCapture;
             MemoryManagedFrame frameToWriteTo = _memoryManager.GetWritableBuffer();
 
@@ -363,6 +370,17 @@ namespace Smithers.Sessions
             }
 
             my_times_after.Add(DateTime.Now - my_times.Last<DateTime>());
+/*
+            Trace.WriteLine("Took " + my_times_after.Last().Milliseconds +"ms to write the frame data to the buffers");
+            if (my_times_after.Count == 1)
+            {
+                Trace.WriteLine("Frame came in at " + my_times.Last().ToString("O"));
+            }
+            else if (my_times_after.Count == 2)
+            {
+                Trace.WriteLine("Frame came in at " + my_times.Last().ToString("O"));
+            }
+            */
 
             // Check if the user pressed the stop button or if the amount of frames to capture is reached
             bool stopCapture = _stopButtonClicked || (_frameCount >= nFramesToCapture && nFramesToCapture != 0);
@@ -440,7 +458,11 @@ namespace Smithers.Sessions
             }
 
 
+            
             // TODO: Remove this when all the timing stuff has been sorted out
+            
+            Trace.WriteLine("first frame = " + my_times_after.First().Milliseconds);
+            
             /*
             foreach (DateTime d in my_times)
             {
