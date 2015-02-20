@@ -60,9 +60,6 @@ namespace Smithers.Serialization
         // Serialized skeleton
         Tuple<object, TimeSpan> _skeleton;
 
-        FrameSerializer _serializer;
-        LiveFrame _frame;
-
         /// <summary>
         /// We call Freeze() so we can write these bitmaps to disk from other threads.
         /// </summary>
@@ -71,9 +68,6 @@ namespace Smithers.Serialization
         public void UpdateColor(LiveFrame frame, FrameSerializer serializer)
         {
             _color = serializer.CaptureColorFrameBitmap(frame, _bufferColor);
-            // _color.Item1.Freeze();
-            _serializer = serializer;
-            _frame = frame;
         }
 
         public void UpdateDepthMapping(LiveFrame frame, FrameSerializer serializer)
@@ -125,7 +119,6 @@ namespace Smithers.Serialization
                     BitmapSource result = FrameSerializer.CreateColorBitmap(_bufferColor, Frame.COLOR_WIDTH, Frame.COLOR_HEIGHT);
                     result.Freeze();
                     _color = new Tuple<BitmapSource, TimeSpan>(result, _color.Item2);
-                    //return null;
                 }
                
                  return _color;

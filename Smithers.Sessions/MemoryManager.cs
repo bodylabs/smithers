@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
 using Smithers.Serialization;
 
 namespace Smithers.Sessions
@@ -28,29 +27,59 @@ namespace Smithers.Sessions
     public class MemoryManager<TMemoryManagedFrame> : IDisposable
         where TMemoryManagedFrame : new()
     {
+        private Stack<TMemoryManagedFrame> _writableMemory;
+        private Stack<TMemoryManagedFrame> _serializeableFrames;
+        
+        private Int64 _capacity;
+        public Int64 Capacity 
+        {
+          get 
+          {
+            return _capacity;
+          }
+          set
+          {
+            lock (_lockObject)
+            {
+              if (_serializeableFrames.Count > 0 || _writableMemory.Count != _capacity)
+                throw new InvalidOperationException("Cannot change the size of the container while all write buffers are not flushed out");
+              if (_writableMemory.Count > value)
+              {
+                while(_writableMemory.Count != value)
+                {
+                  _writableMemory.Pop();
+                }
 
-        private TMemoryManagedFrame[] _frames;
-        Stack<TMemoryManagedFrame> _writableMemory;
-        Stack<TMemoryManagedFrame> _serializeableFrames;
-        object _lockObject;
+              }
+              else if (_writableMemory.Count < value)
+              {
+                while (_writableMemory.Count != value)
+                {
+                  _writableMemory.Push(new TMemoryManagedFrame());
+                }
+              }
+              _capacity = value;
+            }
+          }
+        }
+
+        object _lockObject = new object();
 
         /// <summary>
         /// Constructs a new MemoryManager with the given amount of buffers/frames to manage.
         /// </summary>
         /// <param name="nMemoryFrames"></param>
-        public MemoryManager(int nMemoryFrames)
+        public MemoryManager(int nMemoryFrames = 200)
         {
-            _frames = new TMemoryManagedFrame[nMemoryFrames];
             _writableMemory = new Stack<TMemoryManagedFrame>(nMemoryFrames);
             _serializeableFrames = new Stack<TMemoryManagedFrame>(nMemoryFrames);
 
-            for (int i = 0; i < _frames.Length; i += 1)
+            for (int i = 0; i < nMemoryFrames; i++)
             {
-                _frames[i] = new TMemoryManagedFrame();
-                _writableMemory.Push(_frames[i]);
+              _writableMemory.Push(new TMemoryManagedFrame());
             }
 
-            _lockObject = new object();
+            _capacity = nMemoryFrames; // and not Capacity = nMemoryFrames
             
         }
 
@@ -62,14 +91,13 @@ namespace Smithers.Sessions
             _writableMemory.Clear();
             _serializeableFrames.Clear();
             _lockObject = null;
-            _frames = null;
         }
 
         /// <summary>
         /// How many buffers are currently free? 
         /// </summary>
         /// <returns></returns>
-        public int nWritableBuffers()
+        public int NbFreeBuffers()
         {
             lock (_lockObject)
             {
@@ -81,7 +109,7 @@ namespace Smithers.Sessions
         /// How many buffers are currently enqueued for serialization?
         /// </summary>
         /// <returns></returns>
-        public int nSerializableBuffers()
+        public int NbBuzyBuffers()
         {
             lock (_lockObject)
             {
