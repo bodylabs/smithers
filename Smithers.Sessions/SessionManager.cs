@@ -539,20 +539,22 @@ namespace Smithers.Sessions
             return writers;
         }
 
-        protected virtual string GeneratePath(TShot shot, MemoryFrame frame, double deltaTimeInMS, int frameIndex, IWriter writer)
+        protected virtual string GeneratePath(TShot shot, MemoryFrame frame, TimeSpan deltaTime, int frameIndex, IWriter writer)
         {
             string folderName = writer.Type.Name;
 
-            string shotName = string.Format("Shot_{0:D3}", _session.Shots.IndexOf(shot) + 1);
+            string shotName = string.Format("s{0:D3}", _session.Shots.IndexOf(shot) + 1);
 
             // 0 -> Frame_001, 1 -> Frame_002, etc.
-            string frameName = string.Format("Frame_{0:D3}", frameIndex + 1);
+            string frameName = string.Format("frame_{0:D5}", frameIndex + 1);
+
+            string timestamp_name = deltaTime.ToString(@"hh\.mm\.ss\.fff");//string.Format("{0:D2}.{0:D2}.{0:D2}.{0:D3}", deltaTime.Hours, deltaTime.Minutes, deltaTime.Seconds, deltaTime.Milliseconds);
             string fileName = string.Format(
-                "{0}{1}{2}_Time_{3:#}{4}",
+                "{0}{1}{2}__{3}{4}",
                 shotName,
                 shotName == null ? "" : "_",
                 frameName,
-                deltaTimeInMS,
+                timestamp_name,
                 writer.FileExtension
             );
 
@@ -609,7 +611,6 @@ namespace Smithers.Sessions
             MemoryFrame memoryFrame = frame.Frame;
             int index = frame.Index;
             TimeSpan deltaTime = frame.ArrivedTime - shot.StartTime;
-            double deltaTimeInMS = deltaTime.TotalMilliseconds;
 
             if (index == 0)
             {
@@ -634,7 +635,7 @@ namespace Smithers.Sessions
                     {
                         Type = writer.Type,
                         Timestamp = writer.Timestamp,
-                        Path = GeneratePath(shot, memoryFrame, deltaTimeInMS, index, writer),
+                        Path = GeneratePath(shot, memoryFrame, deltaTime, index, writer),
                     }
                 ));
             }

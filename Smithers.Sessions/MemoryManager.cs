@@ -30,8 +30,8 @@ namespace Smithers.Sessions
     {
 
         private TMemoryManagedFrame[] _frames;
-        Queue<TMemoryManagedFrame> _writableMemory;
-        Queue<TMemoryManagedFrame> _serializeableFrames;
+        Stack<TMemoryManagedFrame> _writableMemory;
+        Stack<TMemoryManagedFrame> _serializeableFrames;
         object _lockObject;
 
         /// <summary>
@@ -41,13 +41,13 @@ namespace Smithers.Sessions
         public MemoryManager(int nMemoryFrames)
         {
             _frames = new TMemoryManagedFrame[nMemoryFrames];
-            _writableMemory = new Queue<TMemoryManagedFrame>(nMemoryFrames);
-            _serializeableFrames = new Queue<TMemoryManagedFrame>(nMemoryFrames);
+            _writableMemory = new Stack<TMemoryManagedFrame>(nMemoryFrames);
+            _serializeableFrames = new Stack<TMemoryManagedFrame>(nMemoryFrames);
 
             for (int i = 0; i < _frames.Length; i += 1)
             {
                 _frames[i] = new TMemoryManagedFrame();
-                _writableMemory.Enqueue(_frames[i]);
+                _writableMemory.Push(_frames[i]);
             }
 
             _lockObject = new object();
@@ -103,7 +103,7 @@ namespace Smithers.Sessions
                 }
                 else
                 {
-                    return _writableMemory.Dequeue();
+                    return _writableMemory.Pop();
                 }
             }
         }
@@ -122,7 +122,7 @@ namespace Smithers.Sessions
                 }
                 else
                 {
-                    return _serializeableFrames.Dequeue(); ;
+                  return _serializeableFrames.Pop(); ;
                 }
             }
         }
@@ -135,7 +135,7 @@ namespace Smithers.Sessions
         {
             lock (_lockObject)
             {
-                _serializeableFrames.Enqueue(frameToSerialize);
+                _serializeableFrames.Push(frameToSerialize);
             }
         }
 
@@ -150,7 +150,7 @@ namespace Smithers.Sessions
         {
             lock (_lockObject)
             {
-                _writableMemory.Enqueue(frame);
+                _writableMemory.Push(frame);
             }
         }
     }
