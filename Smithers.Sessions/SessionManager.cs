@@ -150,7 +150,7 @@ namespace Smithers.Sessions
         /// Timer that fires the updateGUI event every GUI_UPDATE_RATE_IN_MS 
         /// </summary>
         Thread _guiTimer;
-        private const int GUI_UPDATE_RATE_IN_MS = 3000;
+        private const int GUI_UPDATE_RATE_IN_MS = 1000;
 
         /// <summary>
         /// List of Timestamps recording when the Frames came in from the kinect
@@ -233,7 +233,7 @@ namespace Smithers.Sessions
             _frameTimes = new List<DateTime>();
             _frameTimeDeltas = new List<double>();
 
-            _guiTimer = new Thread(onGuiUpdate);
+            _guiTimer = new Thread(GuiInformationUpdate);
             _guiTimer.Start();
 
             _serializationThreadPool = new SerializationThreadPool<MemoryManagedFrame>(
@@ -252,22 +252,32 @@ namespace Smithers.Sessions
         /// <summary>
         /// Timer callback that computes the min and average FPS in the past GUI_UPDATE_RATE_IN_MS - window.
         /// </summary>
-        private void onGuiUpdate()
+        private void GuiInformationUpdate()
         {
           while (true)
           {
             if (updateGUI != null)
             {
-              double maxTimeDelta = _frameTimeDeltas.Count > 0 ? _frameTimeDeltas.Max() : 0;
-              double minFPS = _frameTimeDeltas.Count > 0 ? (1000.0 / maxTimeDelta) : 0;
-              double averageFPS = _frameTimeDeltas.Count > 0 ? (1000.0 / _frameTimeDeltas.Average()) : 0;
+              double maxTimeDelta = 0;
+              double minFPS = 0;
+              double averageFPS = 0;
               double precentage_buffer = 100 * ((double)_memoryManager.NbBuzyBuffers() / _memoryManager.Capacity);
+              lock(this._lockObject)
+              {
+                if (_frameTimeDeltas.Count > 0)
+                {
+                  maxTimeDelta = _frameTimeDeltas.Max();
+                  minFPS = (1000.0 / maxTimeDelta);
+                  averageFPS = (1000.0 / _frameTimeDeltas.Average());
+
+                  _frameTimeDeltas.Clear();
+                  _frameTimes.Clear();
+                }
+              }
 
               GUIUpdateEventArgs args = new GUIUpdateEventArgs(minFPS, maxTimeDelta, averageFPS, precentage_buffer, _current_state == null ? "Ready": (string)_current_state.Clone());
               updateGUI(this, args);
 
-              _frameTimeDeltas.Clear();
-              _frameTimes.Clear();
 
             }
             Thread.Sleep(GUI_UPDATE_RATE_IN_MS);
