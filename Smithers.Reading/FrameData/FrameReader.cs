@@ -72,9 +72,6 @@ namespace Smithers.Reading.FrameData
 
         #endregion
 
-        // TODO: Remove once all timing has been done
-        List<DateTime> my_times, my_times_null;
-
         public FrameReader()
         {
             _sensor = KinectSensor.GetDefault();
@@ -89,12 +86,8 @@ namespace Smithers.Reading.FrameData
                 _sensor.Open();
             }
 
-            Console.WriteLine("capability " + _sensor.KinectCapabilities.ToString());
             _reader = _sensor.OpenMultiSourceFrameReader(FrameSourceTypes.Color | FrameSourceTypes.Depth | FrameSourceTypes.Infrared | FrameSourceTypes.Body | FrameSourceTypes.BodyIndex);
             _reader.MultiSourceFrameArrived += Reader_MultiSourceFrameArrived;
-
-            my_times = new List<DateTime>();
-            my_times_null = new List<DateTime>();
 
         }
 
@@ -126,18 +119,6 @@ namespace Smithers.Reading.FrameData
                 _sensor = null;
             }
 
-
-            /*
-            foreach(DateTime d in my_times)
-            {
-              Trace.WriteLine("frame arrived at time " + d.ToString("O"));
-            }
-
-            foreach (DateTime d in my_times_null)
-            {
-              Trace.WriteLine("null frame arrived at time " + d.ToString("O"));
-            }
-             * */
             GC.SuppressFinalize(this);
         }
 
@@ -150,12 +131,8 @@ namespace Smithers.Reading.FrameData
           
             if (multiFrame == null)
             {
-              my_times_null.Add(DateTime.Now);
-
               return;
             }
-
-
 
             LiveFrame result = new LiveFrame(_sensor);
             result.NativeColorFrame = multiFrame.ColorFrameReference.AcquireFrame();
@@ -172,8 +149,6 @@ namespace Smithers.Reading.FrameData
                     this.DispatchFrame(result);
                 }
             }
-
-            my_times.Add(DateTime.Now);
             return;
         }
 

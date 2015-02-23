@@ -64,13 +64,60 @@ namespace Smithers.Sessions
         public double MinFPS { get; set; }
         public double AverageFPS { get; set; }
         public double MaxTimeDeleta { get; set; }
+        public double PercentageBuffer { get; set; }
+        public String Blabla { get; set; }
 
-        public GUIUpdateEventArgs(double minFPS, double maxTimeDelta, double averageFPS)
+        public GUIUpdateEventArgs(double minFPS, double maxTimeDelta, double averageFPS, double percentage_buffer, string message)
         {
             this.MinFPS = minFPS;
             this.AverageFPS = averageFPS;
             this.MaxTimeDeleta = maxTimeDelta;
+            this.PercentageBuffer = percentage_buffer;
+            this.Blabla = message;
         }
+    }
+
+
+
+    /// <summary>
+    /// This task is performed by the thread pool
+    /// </summary>
+    class SerializationTask : Smithers.Sessions.PoolTask
+    {
+      private MemoryManager<MemoryManagedFrame> _internal_memory_manager;
+      private SerializeFrameToDiskDelegate _serializeOneFrameToDisk;
+
+      /// <summary>
+      /// The serialization callback definition
+      /// </summary>
+      public delegate void SerializeFrameToDiskDelegate(MemoryManagedFrame frame);
+
+
+      public SerializationTask(
+        MemoryManager<MemoryManagedFrame> internal_memory_manager,
+        SerializeFrameToDiskDelegate serialisation_delegate)
+      {
+        _internal_memory_manager = internal_memory_manager;
+        _serializeOneFrameToDisk = serialisation_delegate;
+      }
+
+      public override bool IsTaskEmpty() 
+      {
+        return _internal_memory_manager.Capacity == _internal_memory_manager.NbFreeBuffers();
+      }
+
+      public override void PerformNextTask()
+      {
+        MemoryManagedFrame frameToSerialize = _internal_memory_manager.GetSerializableFrame();
+        if (frameToSerialize == null)
+          return;
+
+        _serializeOneFrameToDisk(frameToSerialize);
+        frameToSerialize.Frame.Clear();
+
+        _internal_memory_manager.SetFrameAsWritable(frameToSerialize);
+      }
+
     }
 
     public class SessionManager<TSession, TMetadata, TShot, TShotDefinition, TSavedItem> : FrameReaderCallbacks
@@ -89,12 +136,12 @@ namespace Smithers.Sessions
         Task<CalibrationRecord> _calibration;
         object _lockObject = new object();
         
-        MemoryManager<MemoryManagedFrame> _memoryManager;
+        MemoryManager<MemoryManagedFrame> _memoryManager = new MemoryManager<MemoryManagedFrame>();
         SerializationThreadPool<MemoryManagedFrame> _serializationThreadPool;
         private const int SERIALIZATION_THREAD_COUNT = 8;
-        
+
         int _frameCount = 0;
-        bool _stopButtonClicked = false;
+        bool _captureStopRequested = false;
 
         FrameReader _reader;
         FrameSerializer _serializer = new FrameSerializer();
@@ -102,8 +149,8 @@ namespace Smithers.Sessions
         /// <summary>
         /// Timer that fires the updateGUI event every GUI_UPDATE_RATE_IN_MS 
         /// </summary>
-        System.Timers.Timer _guiTimer;
-        private const int GUI_UPDATE_RATE_IN_MS = 3000;
+        Thread _guiTimer;
+        private const int GUI_UPDATE_RATE_IN_MS = 1000;
 
         /// <summary>
         /// List of Timestamps recording when the Frames came in from the kinect
@@ -164,6 +211,13 @@ namespace Smithers.Sessions
         /// </summary>
         public event EventHandler<GUIUpdateEventArgs> updateGUI;
 
+
+        /// <summary>
+        /// Messages of the current state of the capture
+        /// </summary>
+        private string _current_state;
+
+
         
 
         public SessionManager(TSession session)
@@ -179,31 +233,67 @@ namespace Smithers.Sessions
             _frameTimes = new List<DateTime>();
             _frameTimeDeltas = new List<double>();
 
-            _guiTimer = new System.Timers.Timer(GUI_UPDATE_RATE_IN_MS);
-            _guiTimer.Elapsed += new System.Timers.ElapsedEventHandler(onGuiUpdate);
+            _guiTimer = new Thread(GuiInformationUpdate);
+            _guiTimer.Start();
+
+            _serializationThreadPool = new SerializationThreadPool<MemoryManagedFrame>(
+              SERIALIZATION_THREAD_COUNT,
+              new SerializationTask(_memoryManager, SaveOneFrameToDisk));
+            _serializationThreadPool.StartPool();
+
+            
+        }
+
+        void Dispose()
+        {
+          _guiTimer.Abort();
         }
 
         /// <summary>
         /// Timer callback that computes the min and average FPS in the past GUI_UPDATE_RATE_IN_MS - window.
         /// </summary>
-        private void onGuiUpdate(Object source, System.Timers.ElapsedEventArgs e)
+        private void GuiInformationUpdate()
         {
-            if (_frameTimeDeltas.Count > 0)
+          while (true)
+          {
+            if (updateGUI != null)
             {
-                double maxTimeDelta = _frameTimeDeltas.Max();
-                double minFPS = (1000.0 / maxTimeDelta);
-                double averageFPS = (1000.0 / _frameTimeDeltas.Average());
+              double maxTimeDelta = 0;
+              double minFPS = 0;
+              double averageFPS = 0;
+              double precentage_buffer = 100 * ((double)_memoryManager.NbBuzyBuffers() / _memoryManager.Capacity);
+              lock(this._lockObject)
+              {
+                if (_frameTimeDeltas.Count > 0)
+                {
+                  maxTimeDelta = _frameTimeDeltas.Max();
+                  minFPS = (1000.0 / maxTimeDelta);
+                  averageFPS = (1000.0 / _frameTimeDeltas.Average());
 
-                GUIUpdateEventArgs args = new GUIUpdateEventArgs(minFPS, maxTimeDelta, averageFPS);
+                  _frameTimeDeltas.Clear();
+                  _frameTimes.Clear();
+                }
+              }
 
-                if (updateGUI != null)
-                    updateGUI(this, args);
+              GUIUpdateEventArgs args = new GUIUpdateEventArgs(minFPS, maxTimeDelta, averageFPS, precentage_buffer, _current_state == null ? "Ready": (string)_current_state.Clone());
+              updateGUI(this, args);
 
-                _frameTimeDeltas.Clear();
-                _frameTimes.Clear();
 
             }
+            Thread.Sleep(GUI_UPDATE_RATE_IN_MS);
+          }
         }
+
+        /// <summary>
+        /// Signal received in order to change the size of the buffer
+        /// </summary>
+        /// <param name="size"></param>
+        public void SetBufferSize(long size)
+        {
+          _memoryManager.Capacity = size;
+        }
+
+        
 
         /// <summary>
         /// Get ready for the first shot.
@@ -242,11 +332,7 @@ namespace Smithers.Sessions
             //       joined Threads cannot be reused
             if (_nextShot != null)
             {
-                _memoryManager = 
-                    new MemoryManager<MemoryManagedFrame>(_nextShot.ShotDefinition.MemoryFrameCount);
-                _serializationThreadPool = 
-                    new SerializationThreadPool<MemoryManagedFrame>(SERIALIZATION_THREAD_COUNT, _memoryManager, SaveOneFrameToDisk);
-                _serializationThreadPool.StartSerialization();
+                _memoryManager.Capacity = _nextShot.ShotDefinition.MemoryFrameCount;
             }
 
             if (_nextShot != null && ReadyForShot != null)
@@ -271,7 +357,6 @@ namespace Smithers.Sessions
             Thread.Sleep(300);
             _capturingShot = _nextShot;
             _capturingShot.StartTime = DateTime.Now;
-            _guiTimer.Enabled = true;
         }
 
         public virtual bool ValidateShot(out string message)
@@ -288,6 +373,11 @@ namespace Smithers.Sessions
 
         public virtual void FrameArrived(LiveFrame frame)
         {
+          // stop requested, we do not enter here anymore
+          if (_captureStopRequested)
+            return;
+
+
             DateTime now = DateTime.Now;
             my_times.Add(now);
 
@@ -314,23 +404,18 @@ namespace Smithers.Sessions
                 return;
             }
 
-            // (1) Serialize frame data
-
-            /*
-            Trace.WriteLine("Available Buffers: " +_memoryManager.nWritableBuffers());
-            Trace.WriteLine("Serializable Buffers: " + _memoryManager.nSerializableBuffers());
-            */
-
             int nFramesToCapture = _capturingShot.ShotDefinition.FramesToCapture;
             MemoryManagedFrame frameToWriteTo = _memoryManager.GetWritableBuffer();
 
             if (frameToWriteTo == null)
             {
                 bufferAvailable = false;
+                _current_state = "stopping (buffer full)";
                 Console.WriteLine("There is no memory to write the frame data to. The capture ends now.");
             } 
             else
             {
+                _current_state = "capturing";
                 // We successfully received a buffer, now we can fill the frame data into the buffer
                 bufferAvailable = true;
                 frameToWriteTo.Frame.Clear();
@@ -402,53 +487,26 @@ namespace Smithers.Sessions
             */
 
             // Check if the user pressed the stop button or if the amount of frames to capture is reached
-            bool stopCapture = _stopButtonClicked || (_frameCount >= nFramesToCapture && nFramesToCapture != 0);
+            bool continueCapture = _frameCount < nFramesToCapture || nFramesToCapture == 0;
 
-            if (!stopCapture && bufferAvailable)
+            if (continueCapture && bufferAvailable)
             {
                 // Continue the capture
                 return;
             }
 
-            // We registered the stop button click, set it back to false
-            _stopButtonClicked = false;
+            _captureStopRequested = true;
+            _current_state += " - finishing capture";
 
-
-            // (2) Move to the next shot
-            // The Capture should be stopped, signal serialization end and prepare for new Shot to come in
-            _serializationThreadPool.EndSerialization();
-
-            string message;
-            if (!ValidateShot(out message))
+            new Thread(() =>
             {
-                _frameCount = 0;
-                var ea2 = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot, message);
-
-                _capturingShot = null;
-
-                if (ShotCompletedError != null)
-                    ShotCompletedError(this, ea2);
-
-                return;
-            }
-
-            var ea = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot, message);
-
-            _capturingShot = null;
-
-            // Blocks until everything is written to disk
-            _serializationThreadPool.WaitForSerializationEnd();
-
-            if (ShotCompletedSuccess != null)
-                ShotCompletedSuccess(this, ea);
-
-            FinishShot();
+              StopCapture();
+            }).Start();
         }
 
         private void FinishShot()
         {
             _writingShot.Completed = true;
-            _guiTimer.Enabled = false;
             // TODO: Is this metadatafile needed?
 
             /*
@@ -475,7 +533,6 @@ namespace Smithers.Sessions
                 if (LastShotFinished != null)
                     LastShotFinished(this, ea2);
             }
-
 
             
             // TODO: Remove this when all the timing stuff has been sorted out
@@ -504,19 +561,62 @@ namespace Smithers.Sessions
             my_times.Clear();
             my_times_after.Clear();
 
+            _captureStopRequested = false;
+            _current_state = "Ready to capture";
+
         }
+
+
 
         public void StopCapture()
         {
             if (_capturingShot != null)
             {
-                _stopButtonClicked = true;
+                _captureStopRequested = true;
+                _current_state = "Stop required / finishing capture";
+
+
+                // (2) Move to the next shot
+                string message;
+                if (!ValidateShot(out message))
+                {
+                  _frameCount = 0;
+                  var ea2 = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot, message);
+
+                  _capturingShot = null;
+
+                  if (ShotCompletedError != null)
+                    ShotCompletedError(this, ea2);
+
+                  return;
+                }
+
+                var ea = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot, message);
+
+                _capturingShot = null;
+
+                // Blocks until everything is written to disk
+                while (_memoryManager.NbFreeBuffers() < _memoryManager.Capacity)
+                {
+                  Thread.Sleep(1);
+                }
+
+                if (ShotCompletedSuccess != null)
+                  ShotCompletedSuccess(this, ea);
+
+                FinishShot();
+
+                
+
             }
             else
             {
                 Console.WriteLine("There is no Capture to stop");  
             }
         }
+
+
+        #region Serialization
 
         protected virtual IEnumerable<IWriter> WritersForFrame(TShot shot, MemoryFrame frame, int frameIndex)
         {
@@ -539,20 +639,22 @@ namespace Smithers.Sessions
             return writers;
         }
 
-        protected virtual string GeneratePath(TShot shot, MemoryFrame frame, double deltaTimeInMS, int frameIndex, IWriter writer)
+        protected virtual string GeneratePath(TShot shot, MemoryFrame frame, TimeSpan deltaTime, int frameIndex, IWriter writer)
         {
             string folderName = writer.Type.Name;
 
-            string shotName = string.Format("Shot_{0:D3}", _session.Shots.IndexOf(shot) + 1);
+            string shotName = string.Format("s{0:D3}", _session.Shots.IndexOf(shot) + 1);
 
             // 0 -> Frame_001, 1 -> Frame_002, etc.
-            string frameName = string.Format("Frame_{0:D3}", frameIndex + 1);
+            string frameName = string.Format("frame_{0:D5}", frameIndex + 1);
+
+            string timestamp_name = deltaTime.ToString(@"hh\.mm\.ss\.fff");
             string fileName = string.Format(
-                "{0}{1}{2}_Time_{3:#}{4}",
+                "{0}{1}{2}__{3}{4}",
                 shotName,
                 shotName == null ? "" : "_",
                 frameName,
-                deltaTimeInMS,
+                timestamp_name,
                 writer.FileExtension
             );
 
@@ -609,7 +711,6 @@ namespace Smithers.Sessions
             MemoryFrame memoryFrame = frame.Frame;
             int index = frame.Index;
             TimeSpan deltaTime = frame.ArrivedTime - shot.StartTime;
-            double deltaTimeInMS = deltaTime.TotalMilliseconds;
 
             if (index == 0)
             {
@@ -634,12 +735,15 @@ namespace Smithers.Sessions
                     {
                         Type = writer.Type,
                         Timestamp = writer.Timestamp,
-                        Path = GeneratePath(shot, memoryFrame, deltaTimeInMS, index, writer),
+                        Path = GeneratePath(shot, memoryFrame, deltaTime, index, writer),
                     }
                 ));
             }
 
             return preparedWriters;
         }
+
+        #endregion 
+    
     }
 }
