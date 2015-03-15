@@ -35,9 +35,9 @@ using System.Threading.Tasks;
 
 namespace Smithers.Serialization.Writers
 {
-    public abstract class BlkdWriter<TMemoryFrame> : MemoryFrameWriter<TMemoryFrame>
+    public abstract class BlkdWriter<TMemoryFrame, TFrameSerializer> : MemoryFrameWriter<TMemoryFrame, TFrameSerializer>
     {
-        public BlkdWriter(TMemoryFrame frame, FrameSerializer serializer) : base(frame, serializer) { }
+        public BlkdWriter(TMemoryFrame frame, TFrameSerializer serializer) : base(frame, serializer) { }
 
         public override string FileExtension { get { return ".blkd"; } }
 
@@ -49,7 +49,7 @@ namespace Smithers.Serialization.Writers
         }
     }
 
-    public class DepthMappingWriter : BlkdWriter<MemoryFrame>
+    public class DepthMappingWriter : BlkdWriter<MemoryFrame, FrameSerializer>
     {
         public DepthMappingWriter(MemoryFrame frame, FrameSerializer serializer) : base(frame, serializer) { }
 

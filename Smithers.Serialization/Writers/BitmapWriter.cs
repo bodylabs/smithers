@@ -35,9 +35,9 @@ using System.Windows.Media.Imaging;
 
 namespace Smithers.Serialization.Writers
 {
-    public abstract class PngBitmapWriter<TMemoryFrame> : MemoryFrameWriter<TMemoryFrame>
+    public abstract class PngBitmapWriter<TMemoryFrame, TFrameSerializer> : MemoryFrameWriter<TMemoryFrame, TFrameSerializer>
     {
-        public PngBitmapWriter(TMemoryFrame frame, FrameSerializer serializer) : base(frame, serializer) { }
+        public PngBitmapWriter(TMemoryFrame frame, TFrameSerializer serializer) : base(frame, serializer) { }
 
         public override string FileExtension { get { return ".png"; } }
 
@@ -51,9 +51,9 @@ namespace Smithers.Serialization.Writers
         }
     }
 
-    public abstract class JpegBitmapWriter<TMemoryFrame> : MemoryFrameWriter<TMemoryFrame>
+    public abstract class JpegBitmapWriter<TMemoryFrame, TFrameSerializer> : MemoryFrameWriter<TMemoryFrame, TFrameSerializer>
     {
-        public JpegBitmapWriter(TMemoryFrame frame, FrameSerializer serializer) : base(frame, serializer) { }
+        public JpegBitmapWriter(TMemoryFrame frame, TFrameSerializer serializer) : base(frame, serializer) { }
 
         public override string FileExtension { get { return ".jpg"; } }
 
@@ -67,7 +67,7 @@ namespace Smithers.Serialization.Writers
         }
     }
 
-    public class DepthFrameWriter : PngBitmapWriter<MemoryFrame>
+    public class DepthFrameWriter : PngBitmapWriter<MemoryFrame, FrameSerializer>
     {
         public DepthFrameWriter(MemoryFrame frame, FrameSerializer serializer) : base(frame, serializer) { }
 
@@ -78,7 +78,7 @@ namespace Smithers.Serialization.Writers
         protected override BitmapSource BitmapSource { get { return _frame.Depth.Item1; } }
     }
 
-    public class InfraredFrameWriter : PngBitmapWriter<MemoryFrame>
+    public class InfraredFrameWriter : PngBitmapWriter<MemoryFrame, FrameSerializer>
     {
         public InfraredFrameWriter(MemoryFrame frame, FrameSerializer serializer) : base(frame, serializer) { }
 
@@ -89,7 +89,7 @@ namespace Smithers.Serialization.Writers
         protected override BitmapSource BitmapSource { get { return _frame.Infrared.Item1; } }
     }
 
-    public class ColorFrameWriter : JpegBitmapWriter<MemoryFrame>
+    public class ColorFrameWriter : JpegBitmapWriter<MemoryFrame, FrameSerializer>
     {
         public ColorFrameWriter(MemoryFrame frame, FrameSerializer serializer) : base(frame, serializer) { }
 
@@ -100,7 +100,7 @@ namespace Smithers.Serialization.Writers
         protected override BitmapSource BitmapSource { get { return _frame.Color.Item1; } }
     }
 
-    public class BodyIndexFrameWriter : PngBitmapWriter<MemoryFrame>
+    public class BodyIndexFrameWriter : PngBitmapWriter<MemoryFrame, FrameSerializer>
     {
         public BodyIndexFrameWriter(MemoryFrame frame, FrameSerializer serializer) : base(frame, serializer) { }
 

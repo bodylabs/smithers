@@ -34,12 +34,12 @@ using System.Threading.Tasks;
 
 namespace Smithers.Serialization.Writers
 {
-    public abstract class MemoryFrameWriter<TMemoryFrame> : IWriter
+    public abstract class MemoryFrameWriter<TMemoryFrame, TFrameSerializer> : IWriter
     {
         protected TMemoryFrame _frame;
-        protected FrameSerializer _serializer;
+        protected TFrameSerializer _serializer;
 
-        public MemoryFrameWriter(TMemoryFrame frame, FrameSerializer serializer)
+        public MemoryFrameWriter(TMemoryFrame frame, TFrameSerializer serializer)
         {
             _frame = frame;
             _serializer = serializer;
