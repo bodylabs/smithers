@@ -35,9 +35,9 @@ using System.Threading.Tasks;
 
 namespace Smithers.Serialization.Writers
 {
-    public abstract class JsonFrameWriter : MemoryFrameWriter
+    public abstract class JsonFrameWriter<TMemoryFrame> : MemoryFrameWriter<TMemoryFrame>
     {
-        public JsonFrameWriter(MemoryFrame frame, FrameSerializer serializer) : base(frame, serializer) { }
+        public JsonFrameWriter(TMemoryFrame frame, FrameSerializer serializer) : base(frame, serializer) { }
 
         public override string FileExtension { get { return ".json"; } }
 
@@ -56,7 +56,7 @@ namespace Smithers.Serialization.Writers
         }
     }
 
-    public class SkeletonWriter : JsonFrameWriter
+    public class SkeletonWriter : JsonFrameWriter<MemoryFrame>
     {
         public SkeletonWriter(MemoryFrame frame, FrameSerializer serializer) : base(frame, serializer) { }
 
