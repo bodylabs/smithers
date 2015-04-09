@@ -135,6 +135,7 @@ namespace Smithers.Sessions
 
         Task<CalibrationRecord> _calibration;
         object _lockObject = new object();
+        object _stopCapturelockObject = new object();
         
         MemoryManager<MemoryManagedFrame> _memoryManager = new MemoryManager<MemoryManagedFrame>();
         SerializationThreadPool<MemoryManagedFrame> _serializationThreadPool;
@@ -226,8 +227,6 @@ namespace Smithers.Sessions
 
             // NOTE: The memory manager and the SerializationThreadPool can´t be initialised here or it will use the default maxframecount of 50
 
-            my_times = new List<DateTime>();
-            my_times_after = new List<TimeSpan>();
             _timestampCollection = new List<double[]>();
 
             _frameTimes = new List<DateTime>();
@@ -367,25 +366,26 @@ namespace Smithers.Sessions
 
 
         // TODO: Remove these once all timing stuff is done
-        List<DateTime> my_times;
-        List<TimeSpan> my_times_after;
         List<double[]> _timestampCollection;
 
         public virtual void FrameArrived(LiveFrame frame)
         {
-          // stop requested, we do not enter here anymore
-          if (_captureStopRequested)
-            return;
+
+          // special lock shared only with the stop button
+          lock (_stopCapturelockObject)
+          {
+            // stop requested, we do not enter here anymore
+            if (_captureStopRequested)
+              return;
 
 
             DateTime now = DateTime.Now;
-            my_times.Add(now);
-
+            
             if (_frameTimes.Count > 0)
             {
-                TimeSpan span = now - _frameTimes.Last<DateTime>();
-                double deltaInMS = span.TotalMilliseconds;
-                _frameTimeDeltas.Add(deltaInMS);
+              TimeSpan span = now - _frameTimes.Last<DateTime>();
+              double deltaInMS = span.TotalMilliseconds;
+              _frameTimeDeltas.Add(deltaInMS);
             }
             _frameTimes.Add(now);
 
@@ -394,14 +394,14 @@ namespace Smithers.Sessions
             // if we try to do it right after calling _sensor.Open().
             if (_calibration == null)
             {
-                _calibration = Calibrator.CalibrateAsync(_reader.Sensor);
+              _calibration = Calibrator.CalibrateAsync(_reader.Sensor);
             }
 
             if (_capturingShot == null)
             {
-                // We don´t currently capture, so we can return immediately
-                // Console.WriteLine("_capturingShot == null");
-                return;
+              // We don´t currently capture, so we can return immediately
+              // Console.WriteLine("_capturingShot == null");
+              return;
             }
 
             int nFramesToCapture = _capturingShot.ShotDefinition.FramesToCapture;
@@ -409,99 +409,89 @@ namespace Smithers.Sessions
 
             if (frameToWriteTo == null)
             {
-                bufferAvailable = false;
-                _current_state = "stopping (buffer full)";
-                Console.WriteLine("There is no memory to write the frame data to. The capture ends now.");
-            } 
+              bufferAvailable = false;
+              _current_state = "stopping (buffer full)";
+              Console.WriteLine("There is no more memory to write the frame data. The capture ends now.");
+            }
             else
             {
-                _current_state = "capturing";
-                // We successfully received a buffer, now we can fill the frame data into the buffer
-                bufferAvailable = true;
-                frameToWriteTo.Frame.Clear();
+              _current_state = "capturing";
+              // We successfully received a buffer, now we can fill the frame data into the buffer
+              bufferAvailable = true;
+              frameToWriteTo.Frame.Clear();
 
-                DateTime start = DateTime.Now;
-                double[] timestamps = new double[6];
-                if (_capturingShot.ShotDefinition.SerializationFlags.SerializeColor)
-                {
-                  frameToWriteTo.Frame.UpdateColor(frame, _serializer);
-                }
-                timestamps[0] = (DateTime.Now - start).Milliseconds;
+              DateTime start = DateTime.Now;
+              double[] timestamps = new double[6];
+              if (_capturingShot.ShotDefinition.SerializationFlags.SerializeColor)
+              {
+                frameToWriteTo.Frame.UpdateColor(frame, _serializer);
+              }
+              timestamps[0] = (DateTime.Now - start).Milliseconds;
 
-                start = DateTime.Now;
-                if (_capturingShot.ShotDefinition.SerializationFlags.SerializeDepth)
-                {
-                  frameToWriteTo.Frame.UpdateDepth(frame, _serializer);
-                }
-                timestamps[1] = (DateTime.Now - start).Milliseconds;
+              start = DateTime.Now;
+              if (_capturingShot.ShotDefinition.SerializationFlags.SerializeDepth)
+              {
+                frameToWriteTo.Frame.UpdateDepth(frame, _serializer);
+              }
+              timestamps[1] = (DateTime.Now - start).Milliseconds;
 
-                start = DateTime.Now;
-                if (_capturingShot.ShotDefinition.SerializationFlags.SerializeDepthMapping)
-                {
-                  frameToWriteTo.Frame.UpdateDepthMapping(frame, _serializer);
-                }
-                timestamps[2] = (DateTime.Now - start).Milliseconds;
+              start = DateTime.Now;
+              if (_capturingShot.ShotDefinition.SerializationFlags.SerializeDepthMapping)
+              {
+                frameToWriteTo.Frame.UpdateDepthMapping(frame, _serializer);
+              }
+              timestamps[2] = (DateTime.Now - start).Milliseconds;
 
-                start = DateTime.Now;
-                if (_capturingShot.ShotDefinition.SerializationFlags.SerializeInfrared)
-                {
-                  frameToWriteTo.Frame.UpdateInfrared(frame, _serializer);
-                }
-                timestamps[3] = (DateTime.Now - start).Milliseconds;
+              start = DateTime.Now;
+              if (_capturingShot.ShotDefinition.SerializationFlags.SerializeInfrared)
+              {
+                frameToWriteTo.Frame.UpdateInfrared(frame, _serializer);
+              }
+              timestamps[3] = (DateTime.Now - start).Milliseconds;
 
-                start = DateTime.Now;
-                if (_capturingShot.ShotDefinition.SerializationFlags.SerializeSkeleton)
-                {
-                  frameToWriteTo.Frame.UpdateSkeleton(frame, _serializer);
-                }
-                timestamps[4] = (DateTime.Now - start).Milliseconds;
+              start = DateTime.Now;
+              if (_capturingShot.ShotDefinition.SerializationFlags.SerializeSkeleton)
+              {
+                frameToWriteTo.Frame.UpdateSkeleton(frame, _serializer);
+              }
+              timestamps[4] = (DateTime.Now - start).Milliseconds;
 
-                start = DateTime.Now;
-                frameToWriteTo.Frame.UpdateBodyIndex(frame, _serializer);
-                timestamps[5] = (DateTime.Now - start).Milliseconds;          
+              start = DateTime.Now;
+              frameToWriteTo.Frame.UpdateBodyIndex(frame, _serializer);
+              timestamps[5] = (DateTime.Now - start).Milliseconds;
 
-                lock (_lockObject)
-                {
-                    frameToWriteTo.Index = _frameCount++;
-                    frameToWriteTo.ArrivedTime = DateTime.Now;
-                }
-                
-                _timestampCollection.Add(timestamps);
+              lock (_lockObject)
+              {
+                frameToWriteTo.Index = _frameCount++;
+                frameToWriteTo.ArrivedTime = DateTime.Now;
+              }
+
+              _timestampCollection.Add(timestamps);
 
 
-                // The framedata was stored into the buffer, now we can save it to disk
-                _writingShot = _capturingShot;
-                _memoryManager.EnqueuSerializationTask(frameToWriteTo);
+              // The framedata was stored into the buffer, now we can save it to disk
+              _writingShot = _capturingShot;
+              _memoryManager.EnqueuSerializationTask(frameToWriteTo);
             }
-            my_times_after.Add(DateTime.Now - my_times.Last<DateTime>());
-/*
-            Trace.WriteLine("Took " + my_times_after.Last().Milliseconds +"ms to write the frame data to the buffers");
-            if (my_times_after.Count == 1)
-            {
-                Trace.WriteLine("Frame came in at " + my_times.Last().ToString("O"));
-            }
-            else if (my_times_after.Count == 2)
-            {
-                Trace.WriteLine("Frame came in at " + my_times.Last().ToString("O"));
-            }
-            */
-
+            
             // Check if the user pressed the stop button or if the amount of frames to capture is reached
             bool continueCapture = _frameCount < nFramesToCapture || nFramesToCapture == 0;
 
             if (continueCapture && bufferAvailable)
             {
-                // Continue the capture
-                return;
+              // Continue the capture
+              return;
             }
 
             _captureStopRequested = true;
             _current_state += " - finishing capture";
 
-            new Thread(() =>
-            {
-              StopCapture();
-            }).Start();
+          } // end of the exclusive lock
+
+          new Thread(() =>
+          {
+            StopCapture();
+          }).Start();
         }
 
         private void FinishShot()
@@ -519,7 +509,6 @@ namespace Smithers.Sessions
 
             var ea2 = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_writingShot);
 
-
             if (ShotSavedSuccess != null)
                 ShotSavedSuccess(this, ea2);
             
@@ -534,35 +523,12 @@ namespace Smithers.Sessions
                     LastShotFinished(this, ea2);
             }
 
-            
-            // TODO: Remove this when all the timing stuff has been sorted out
-            
-            Trace.WriteLine("first frame = " + my_times_after.First().Milliseconds);
-            
-            /*
-            foreach (DateTime d in my_times)
+            // exclusive with the frames event
+            lock (_stopCapturelockObject)
             {
-              Trace.WriteLine("frame arrived at time " + d.ToString("O"));
+              _captureStopRequested = false;
+              _current_state = "Ready to capture";
             }
-            */
-
-            foreach (TimeSpan d in my_times_after)
-            {
-              Trace.WriteLine("time span = " + d.Milliseconds);
-            }
-
-            foreach (double[] timestamps in _timestampCollection)
-            {
-                Trace.WriteLine("Color: " + timestamps[0] + "ms, Depth: " + timestamps[1] +
-                                "ms, DepthMapping: " + timestamps[2] + "ms,  Infrared: " + timestamps[3] +
-                                "ms, Skeleton: " + timestamps[4] + "ms, BodyIndex: " + timestamps[5] + "ms");
-            }
-
-            my_times.Clear();
-            my_times_after.Clear();
-
-            _captureStopRequested = false;
-            _current_state = "Ready to capture";
 
         }
 
@@ -572,39 +538,43 @@ namespace Smithers.Sessions
         {
             if (_capturingShot != null)
             {
+              // exclusive with the frames event
+              lock (_stopCapturelockObject)
+              {
                 _captureStopRequested = true;
                 _current_state = "Stop required / finishing capture";
+              }
 
 
-                // (2) Move to the next shot
-                string message;
-                if (!ValidateShot(out message))
-                {
-                  _frameCount = 0;
-                  var ea2 = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot, message);
-
-                  _capturingShot = null;
-
-                  if (ShotCompletedError != null)
-                    ShotCompletedError(this, ea2);
-
-                  return;
-                }
-
-                var ea = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot, message);
+              // (2) Move to the next shot
+              string message;
+              if (!ValidateShot(out message))
+              {
+                _frameCount = 0;
+                var ea2 = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot, message);
 
                 _capturingShot = null;
 
-                // Blocks until everything is written to disk
-                while (_memoryManager.NbFreeBuffers() < _memoryManager.Capacity)
-                {
-                  Thread.Sleep(1);
-                }
+                if (ShotCompletedError != null)
+                  ShotCompletedError(this, ea2);
 
-                if (ShotCompletedSuccess != null)
-                  ShotCompletedSuccess(this, ea);
+                return;
+              }
 
-                FinishShot();
+              var ea = new SessionManagerEventArgs<TShot, TShotDefinition, TSavedItem>(_capturingShot, message);
+
+              _capturingShot = null;
+
+              // Blocks until everything is written to disk
+              while (_memoryManager.NbFreeBuffers() < _memoryManager.Capacity)
+              {
+                Thread.Sleep(1);
+              }
+
+              if (ShotCompletedSuccess != null)
+                ShotCompletedSuccess(this, ea);
+
+              FinishShot();
 
                 
 
