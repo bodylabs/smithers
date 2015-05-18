@@ -28,6 +28,7 @@
 using Microsoft.Kinect;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Smithers.Reading.FrameData
 {
@@ -121,14 +122,19 @@ namespace Smithers.Reading.FrameData
             GC.SuppressFinalize(this);
         }
 
+        
         void Reader_MultiSourceFrameArrived(object sender, MultiSourceFrameArrivedEventArgs e)
         {
-            var result = new LiveFrame(_sensor);
 
-            var multiFrame = e.FrameReference.AcquireFrame();
 
-            if (multiFrame == null) return;
+            MultiSourceFrame multiFrame = e.FrameReference.AcquireFrame();
+          
+            if (multiFrame == null)
+            {
+              return;
+            }
 
+            LiveFrame result = new LiveFrame(_sensor);
             result.NativeColorFrame = multiFrame.ColorFrameReference.AcquireFrame();
             result.NativeDepthFrame = multiFrame.DepthFrameReference.AcquireFrame();
             result.NativeInfraredFrame = multiFrame.InfraredFrameReference.AcquireFrame();
@@ -143,6 +149,7 @@ namespace Smithers.Reading.FrameData
                     this.DispatchFrame(result);
                 }
             }
+            return;
         }
 
     }

@@ -36,6 +36,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
+
 namespace Smithers.Visualization
 {
     public enum CameraMode
@@ -59,7 +60,10 @@ namespace Smithers.Visualization
         public Image CameraPrimary { get; private set; }
         public Image CameraSecondary { get; private set; }
         public CameraMode CameraMode { get; set; }
-        public bool Enabled { get; set; }
+        public bool SparseUpdate { get; set; }
+
+        private int frameCount;
+        private const int FRAME_UPDATE_COUNT = 60;
 
         public CameraImagePresenter(Image cameraPrimary, Image cameraSecondary)
         {
@@ -68,7 +72,8 @@ namespace Smithers.Visualization
 
             this.EnsureImageSources(null, 1.0, null, 1.0);
 
-            this.Enabled = true;
+            this.SparseUpdate = false;
+            this.frameCount = 0;
         }
 
         private void EnsureImageSources(FrameBitmap primary, double primaryOpacity, FrameBitmap secondary, double secondaryOpacity)
@@ -96,36 +101,47 @@ namespace Smithers.Visualization
 
         public void FrameArrived(LiveFrame frame)
         {
-            if (!this.Enabled) return;
-
-            FrameBitmap primary = null;
-            FrameBitmap secondary = null;
-            double primaryOpacity = 1.0;
-            double secondaryOpacity = 1.0;
-
-            switch (this.CameraMode)
+            if (!this.SparseUpdate)
             {
-                case CameraMode.Color:
-                    _bitmapBuilder.BuildColorBitmap(frame.NativeColorFrame, _bitmapLarge1, true);
-                    primary = _bitmapLarge1;
-                    break;
-                case CameraMode.Depth:
-                    _bitmapBuilder.BuildDepthBitmap(frame.NativeDepthFrame, _bitmapSmall1, true);
-                    primary = _bitmapSmall1;
-                    break;
-                case CameraMode.Infrared:
-                    _bitmapBuilder.BuildInfraredBitmap(frame.NativeInfraredFrame, _bitmapSmall1, true);
-                    primary = _bitmapSmall1;
-                    break;
-                case CameraMode.ColorDepth:
-                    throw new NotImplementedException("Camera mode not implemented");
-                case CameraMode.InfraredDepth:
-                    throw new NotImplementedException("Camera mode not implemented");
-                default:
-                    throw new ArgumentException("Unrecognized camera mode");
+                if (!this.SparseUpdate || (++this.frameCount == FRAME_UPDATE_COUNT))
+                {
+                    FrameBitmap primary = null;
+                    FrameBitmap secondary = null;
+                    double primaryOpacity = 1.0;
+                    double secondaryOpacity = 1.0;
+
+                    switch (this.CameraMode)
+                    {
+                        case CameraMode.Color:
+                            _bitmapBuilder.BuildColorBitmap(frame.NativeColorFrame, _bitmapLarge1, true);
+                            primary = _bitmapLarge1;
+                            break;
+                        case CameraMode.Depth:
+                            _bitmapBuilder.BuildDepthBitmap(frame.NativeDepthFrame, _bitmapSmall1, true);
+                            primary = _bitmapSmall1;
+                            break;
+                        case CameraMode.Infrared:
+                            _bitmapBuilder.BuildInfraredBitmap(frame.NativeInfraredFrame, _bitmapSmall1, true);
+                            primary = _bitmapSmall1;
+                            break;
+                        case CameraMode.ColorDepth:
+                            throw new NotImplementedException("Camera mode not implemented");
+                        case CameraMode.InfraredDepth:
+                            throw new NotImplementedException("Camera mode not implemented");
+                        default:
+                            throw new ArgumentException("Unrecognized camera mode");
+                    }
+
+                    this.EnsureImageSources(primary, primaryOpacity, secondary, secondaryOpacity);
+
+                    // Set back to zero, so there can never be overflow
+                    if (this.SparseUpdate)
+                    {
+                        frameCount -= FRAME_UPDATE_COUNT;
+                    }
+                }
             }
 
-            this.EnsureImageSources(primary, primaryOpacity, secondary, secondaryOpacity);
         }
     }
 }

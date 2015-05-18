@@ -70,10 +70,39 @@ namespace Smithers.Sessions
             get
             {
                 if (this.Shots.Count == 0)
-                    return ShotDefinition.DEFAULT.MaximumFrameCount;
+                    return ShotDefinition.DEFAULT.MemoryFrameCount;
                 else
-                    return this.Shots.Max(x => x.ShotDefinition.MaximumFrameCount);
+                    return this.Shots.Max(x => x.ShotDefinition.MemoryFrameCount);
             }
+        }
+    }
+
+    /// <summary>
+    /// This struct holds boolean flags that indicate which data incoming from the Kinect 
+    /// we actually need to save to disk.
+    /// </summary>
+    public struct SerializationFlags
+    {
+        public bool SerializeColor;
+        public bool SerializeDepth;
+        public bool SerializeInfrared;
+        public bool SerializeSkeleton;
+        public bool SerializeDepthMapping;
+
+        /// <summary>
+        /// Constructor that assings the flags as they are passed in
+        /// </summary>
+        public SerializationFlags(bool color,
+                                  bool depth,
+                                  bool infrared,
+                                  bool skeleton,
+                                  bool depthMapping)
+        {
+            SerializeColor = color;
+            SerializeDepth = depth;
+            SerializeInfrared = infrared;
+            SerializeSkeleton = skeleton;
+            SerializeDepthMapping = depthMapping;
         }
     }
 
@@ -81,6 +110,7 @@ namespace Smithers.Sessions
     /// Placeholder base class, available for subclassing if needed.
     /// </summary>
     public class ShotDefinition {
+
         public static readonly ShotDefinition DEFAULT = new ShotDefinition();
 
         /// <summary>
@@ -89,16 +119,66 @@ namespace Smithers.Sessions
         public int ShotDuration { get { return 100; } }
 
         /// <summary>
+        /// How many Buffers are allocated for a given Shot
+        /// </summary>
+        virtual public int MemoryFrameCount { get { return 50; } }
+        
+        /// <summary>
         /// Maximum frames which will be recorded. If more frames arrive during
         /// ShotDuration, subsequent frames will be discarded.
         /// </summary>
-        public int MaximumFrameCount { get { return 10; } }
+        virtual public int FramesToCapture { get { return 100; } }
+
+        
+        /// <summary>
+        /// Default SerializationFlags, enabling everything but DepthMapping
+        /// </summary>
+        virtual public SerializationFlags SerializationFlags
+        { 
+            get 
+            { 
+                return new SerializationFlags(true, true, true, true, false);
+            }
+        } 
+    }
+
+    public class ShotDefinitionVariableFrames : ShotDefinition
+    {
+        private int _nFramesToRecord;
+        private int _nMemoryFrames;
+        private SerializationFlags _serializationFlags; 
+
+        public ShotDefinitionVariableFrames(int nFramesToRecord, int nMemoryFrames, SerializationFlags flags)
+        {
+            _nFramesToRecord = nFramesToRecord;
+            _nMemoryFrames = nMemoryFrames;
+            _serializationFlags = flags;
+        }
+
+        /// <summary>
+        /// Maximum frames which will be recorded. If more frames arrive during
+        /// ShotDuration, the capture will be stopped
+        /// </summary>
+        /// <remarks>
+        /// If this is set to 0, then the captures runs until the buffers are full or until 
+        /// the user presses the stop button.
+        /// </remarks>
+        override
+        public int FramesToCapture { get { return _nFramesToRecord; } }
+
+        override
+        public int MemoryFrameCount { get { return _nMemoryFrames; } }
+
+        override
+        public SerializationFlags SerializationFlags { get { return _serializationFlags; } }
     }
 
     public class Shot<TShotDefinition, TSavedItem>
         where TShotDefinition : ShotDefinition
         where TSavedItem : SavedItem
     {
+        public DateTime StartTime { get; set; }
+
         public Shot() {
             this.SavedItems = new List<TSavedItem>();
         }

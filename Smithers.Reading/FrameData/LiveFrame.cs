@@ -45,6 +45,7 @@ namespace Smithers.Reading.FrameData
         Body[] _bodies;
         Body _firstBody;
         bool _disposed = false;
+        public bool _isKinectData = true;
 
         public LiveFrame(KinectSensor sensor)
         {

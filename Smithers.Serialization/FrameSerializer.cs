@@ -36,6 +36,7 @@ using System.Linq;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
+
 namespace Smithers.Serialization
 {
     public class FrameSerializer
@@ -63,7 +64,7 @@ namespace Smithers.Serialization
         /// <param name="filename">filename to store the mapping</param>
         /// <returns></returns>
         public Tuple<Blkd, TimeSpan> CaptureMappedFrame(LiveFrame frame, byte[] buffer)
-        {
+        {   
             DepthFrame depthFrame = frame.NativeDepthFrame;
             CoordinateMapper mapper = frame.NativeCoordinateMapper;
 
@@ -138,7 +139,7 @@ namespace Smithers.Serialization
             );
         }
 
-        private static BitmapSource CreateColorBitmap(byte[] buffer, int width, int height)
+        public static BitmapSource CreateColorBitmap(byte[] buffer, int width, int height)
         {
             long bytes = width * height * COLOR_BYTES_PER_PIXEL;
 
@@ -229,8 +230,8 @@ namespace Smithers.Serialization
 
             colorFrame.CopyConvertedFrameDataToArray(buffer, ColorImageFormat.Bgra);
 
-            BitmapSource result = CreateColorBitmap(buffer, Frame.COLOR_WIDTH, Frame.COLOR_HEIGHT);
-            return new Tuple<BitmapSource, TimeSpan>(result, colorFrame.RelativeTime);
+            //BitmapSource result = CreateColorBitmap(buffer, Frame.COLOR_WIDTH, Frame.COLOR_HEIGHT);
+            return new Tuple<BitmapSource, TimeSpan>(null, colorFrame.RelativeTime); // new Tuple<BitmapSource, TimeSpan>(result, colorFrame.RelativeTime);
         }
 
         private static object SerializeJoint(Body skeleton, JointType joint)
@@ -283,12 +284,17 @@ namespace Smithers.Serialization
                 serializedBodies.Add(SerializeBody(body));
             }
 
+
             object result = new
             {
                 FloorClipPlane = frame.NativeBodyFrame.FloorClipPlane.ToArray(),
                 Bodies = serializedBodies
             };
             return new Tuple<object, TimeSpan>(result, frame.NativeBodyFrame.RelativeTime);
+        }
+
+        public static float[] toArray(Vector4 vec) {
+            return new float[] { vec.X, vec.Y, vec.Z, vec.W };
         }
     }
 }
