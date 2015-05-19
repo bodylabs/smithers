@@ -76,7 +76,44 @@ namespace Smithers.Sessions
             return JsonConvert.SerializeObject(dict, Formatting.Indented);
         }
 
+        /// <summary>
+        /// This serialization helper will create the json file if not exists
+        /// and throw any exception encountered
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="path"></param>
         public void Serialize(object data, string path)
+        {
+            if (!File.Exists(path))
+            {
+                string directory = Path.GetDirectoryName(path);
+
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+            }
+
+            JsonSerializer serializer = new JsonSerializer();
+
+            using (StreamWriter streamWriter = new StreamWriter(path))
+            {
+                using (JsonWriter jsonWriter = new JsonTextWriter(streamWriter))
+                {
+                    jsonWriter.Formatting = Formatting.Indented;
+                    serializer.Serialize(jsonWriter, data);
+                }
+            }
+
+        }
+
+        /// <summary>
+        /// Deserialize Helper
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        public T DeserializeObject<T>(string path) where T : new()
         {
             if (!File.Exists(path))
             {
@@ -89,22 +126,19 @@ namespace Smithers.Sessions
                 }
             }
 
-            JsonSerializer serializer = new JsonSerializer();
+            using (TextReader file = File.OpenText(path))
+            {
+                JsonSerializer serializer = new JsonSerializer();
+                T result = (T)serializer.Deserialize(file, typeof(T));
 
-            try
-            {
-                using (StreamWriter streamWriter = new StreamWriter(path))
+                if (result == null)
                 {
-                    using (JsonWriter jsonWriter = new JsonTextWriter(streamWriter))
-                    {
-                        jsonWriter.Formatting = Formatting.Indented;
-                        serializer.Serialize(jsonWriter, data);
-                    }
+                    result = new T();
                 }
+
+                return result;
             }
-            catch (IOException)
-            {
-            }
+            
         }
 
         public List<T> Deserialize<T>(string path)

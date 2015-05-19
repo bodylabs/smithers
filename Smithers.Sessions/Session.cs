@@ -86,13 +86,13 @@ namespace Smithers.Sessions
         /// <summary>
         /// Shot duration in milliseconds. (This is like an inverse of shutter speed.)
         /// </summary>
-        public int ShotDuration { get { return 100; } }
+        public virtual int ShotDuration { get { return 100; } }
 
         /// <summary>
         /// Maximum frames which will be recorded. If more frames arrive during
         /// ShotDuration, subsequent frames will be discarded.
         /// </summary>
-        public int MaximumFrameCount { get { return 10; } }
+        public virtual int MaximumFrameCount { get { return 10; } }
     }
 
     public class Shot<TShotDefinition, TSavedItem>
