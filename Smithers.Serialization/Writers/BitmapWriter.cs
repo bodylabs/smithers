@@ -25,6 +25,7 @@
 // WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+using Smithers.Serialization.Formats;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -64,6 +65,20 @@ namespace Smithers.Serialization.Writers
             JpegBitmapEncoder encoder = new JpegBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(this.BitmapSource));
             encoder.Save(stream);
+        }
+    }
+
+    public abstract class BlkdFrameWriter<TMemoryFrame, TFrameSerializer> : MemoryFrameWriter<TMemoryFrame, TFrameSerializer>
+    {
+        public BlkdFrameWriter(TMemoryFrame frame, TFrameSerializer serializer) : base(frame, serializer) { }
+
+        public override string FileExtension { get { return ".blkd"; } }
+
+        protected abstract Blkd BlkdSource { get; }
+
+        public override void Write(Stream stream)
+        {
+            Smithers.Serialization.Formats.Blkd.Save(this.BlkdSource, stream);
         }
     }
 
