@@ -76,6 +76,11 @@ namespace Smithers.Sessions
             return JsonConvert.SerializeObject(dict, Formatting.Indented);
         }
 
+        public string Serialize(object data)
+        {
+            return JsonConvert.SerializeObject(data, Formatting.Indented);
+        }
+
         /// <summary>
         /// This serialization helper will create the json file if not exists
         /// and throw any exception encountered
